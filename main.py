@@ -282,7 +282,8 @@ async def send_channel_post(update: Update, context: ContextTypes.DEFAULT_TYPE, 
                 photo=content['media_file_id'],
                 caption=caption_with_stars,
                 parse_mode='Markdown',
-                reply_markup=reply_markup
+                reply_markup=reply_markup,
+                has_spoiler=True
             )
         elif content['media_type'] == 'video':
             await context.bot.send_video(
@@ -290,7 +291,8 @@ async def send_channel_post(update: Update, context: ContextTypes.DEFAULT_TYPE, 
                 video=content['media_file_id'],
                 caption=caption_with_stars,
                 parse_mode='Markdown',
-                reply_markup=reply_markup
+                reply_markup=reply_markup,
+                has_spoiler=True
             )
         elif content['media_type'] == 'document':
             await context.bot.send_document(
@@ -298,7 +300,8 @@ async def send_channel_post(update: Update, context: ContextTypes.DEFAULT_TYPE, 
                 document=content['media_file_id'],
                 caption=caption_with_stars,
                 parse_mode='Markdown',
-                reply_markup=reply_markup
+                reply_markup=reply_markup,
+                has_spoiler=True
             )
         else:
             # Para texto, simular el spoiler con botón invisible
