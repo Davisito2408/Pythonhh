@@ -7,7 +7,7 @@ Simula la experiencia de un canal tradicional en chats privados
 import logging
 import os
 import sqlite3
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Union
 from datetime import datetime
 
 from telegram import (
@@ -88,8 +88,8 @@ class ContentBot:
         """Verifica si el usuario es administrador"""
         return user_id == ADMIN_USER_ID
 
-    def register_user(self, user_id: int, username: str = None, 
-                     first_name: str = None, last_name: str = None):
+    def register_user(self, user_id: int, username: Optional[str] = None, 
+                     first_name: Optional[str] = None, last_name: Optional[str] = None):
         """Registra un nuevo usuario"""
         conn = sqlite3.connect(DATABASE_NAME)
         cursor = conn.cursor()
@@ -97,12 +97,12 @@ class ContentBot:
         cursor.execute('''
         INSERT OR REPLACE INTO users (user_id, username, first_name, last_name)
         VALUES (?, ?, ?, ?)
-        ''', (user_id, username, first_name, last_name))
+        ''', (user_id, username or '', first_name or '', last_name or ''))
         
         conn.commit()
         conn.close()
 
-    def get_content_list(self, user_id: int = None) -> List[Dict]:
+    def get_content_list(self, user_id: Optional[int] = None) -> List[Dict]:
         """Obtiene la lista de contenido disponible"""
         conn = sqlite3.connect(DATABASE_NAME)
         cursor = conn.cursor()
@@ -211,16 +211,18 @@ content_bot = ContentBot()
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Comando /start"""
     user = update.effective_user
+    if not user:
+        return
     
     # Registrar usuario
     content_bot.register_user(
-        user.id, user.username, user.first_name, user.last_name
+        user.id, user.username or '', user.first_name or '', user.last_name or ''
     )
     
     welcome_message = f"""
 🌟 ¡Bienvenido al Canal de Contenido Premium! 🌟
 
-Hola {user.first_name}, aquí encontrarás contenido exclusivo de alta calidad.
+Hola {user.first_name or 'Usuario'}, aquí encontrarás contenido exclusivo de alta calidad.
 
 📺 **¿Cómo funciona?**
 • Navega por nuestro catálogo de contenido
@@ -241,6 +243,9 @@ Hola {user.first_name}, aquí encontrarás contenido exclusivo de alta calidad.
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Comando /ayuda"""
+    if not update.message:
+        return
+        
     help_text = """
 📋 **Comandos Disponibles:**
 
@@ -258,10 +263,14 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 Si tienes problemas, contacta al administrador del canal.
     """
     
-    await update.message.reply_text(help_text)
+    if update.message:
+        await update.message.reply_text(help_text)
 
 async def catalog_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Comando /catalogo"""
+    if not update.effective_user or not update.message:
+        return
+        
     user_id = update.effective_user.id
     content_list = content_bot.get_content_list(user_id)
     
@@ -295,6 +304,9 @@ async def catalog_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def admin_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Comando /admin - Panel de administración"""
+    if not update.effective_user or not update.message:
+        return
+        
     user_id = update.effective_user.id
     
     if not content_bot.is_admin(user_id):
@@ -320,6 +332,9 @@ async def admin_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Manejador de callbacks de botones inline"""
     query = update.callback_query
+    if not query or not query.from_user or not query.data:
+        return
+        
     await query.answer()
     
     user_id = query.from_user.id
@@ -451,12 +466,138 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def pre_checkout_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Maneja la verificación previa al pago"""
     query = update.pre_checkout_query
+    if not query:
+        return
     
     # Siempre aceptar el pago (aquí podrías añadir validaciones adicionales)
     await query.answer(ok=True)
 
+async def add_content_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Comando /add_content - Añadir contenido (solo admin)"""
+    if not update.effective_user or not update.message:
+        return
+        
+    user_id = update.effective_user.id
+    
+    if not content_bot.is_admin(user_id):
+        await update.message.reply_text("❌ Solo el administrador puede usar este comando.")
+        return
+    
+    # Verificar si hay argumentos
+    if not context.args:
+        await update.message.reply_text(
+            "📝 **Uso del comando:**\n\n"
+            "1. Envía primero el archivo (foto, video o documento)\n"
+            "2. Luego usa: `/add_content Título|Descripción|Precio_en_estrellas`\n\n"
+            "**Ejemplo:**\n"
+            "`/add_content Video Premium|Contenido exclusivo de alta calidad|50`\n\n"
+            "💡 **Consejo:** Pon precio 0 para contenido gratuito",
+            parse_mode='Markdown'
+        )
+        return
+    
+    # Procesar argumentos
+    try:
+        content_text = " ".join(context.args)
+        parts = content_text.split("|")
+        
+        if len(parts) != 3:
+            await update.message.reply_text(
+                "❌ **Formato incorrecto**\n\n"
+                "Usa: `Título|Descripción|Precio_en_estrellas`",
+                parse_mode='Markdown'
+            )
+            return
+        
+        title = parts[0].strip()
+        description = parts[1].strip()
+        price = int(parts[2].strip())
+        
+        # Verificar si hay media en el contexto
+        if 'pending_media' not in context.user_data:
+            await update.message.reply_text(
+                "❌ **No hay archivo pendiente**\n\n"
+                "Primero envía el archivo y luego usa el comando.",
+                parse_mode='Markdown'
+            )
+            return
+        
+        media_data = context.user_data['pending_media']
+        
+        # Añadir contenido
+        success = content_bot.add_content(
+            title, description, media_data['type'], 
+            media_data['file_id'], price
+        )
+        
+        if success:
+            await update.message.reply_text(
+                f"✅ **Contenido añadido exitosamente**\n\n"
+                f"📺 **Título:** {title}\n"
+                f"📝 **Descripción:** {description}\n"
+                f"💰 **Precio:** {price} estrellas ⭐\n"
+                f"📁 **Tipo:** {media_data['type']}",
+                parse_mode='Markdown'
+            )
+            # Limpiar media pendiente
+            del context.user_data['pending_media']
+        else:
+            await update.message.reply_text("❌ Error al añadir el contenido.")
+    
+    except ValueError:
+        await update.message.reply_text(
+            "❌ **Precio inválido**\n\n"
+            "El precio debe ser un número entero.",
+            parse_mode='Markdown'
+        )
+    except Exception as e:
+        await update.message.reply_text(f"❌ Error: {str(e)}")
+
+async def handle_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Maneja archivos de media enviados"""
+    if not update.effective_user or not update.message:
+        return
+        
+    user_id = update.effective_user.id
+    
+    if not content_bot.is_admin(user_id):
+        await update.message.reply_text("❌ Solo el administrador puede subir contenido.")
+        return
+    
+    # Determinar tipo de media y file_id
+    if update.message.photo:
+        media_type = "photo"
+        file_id = update.message.photo[-1].file_id
+    elif update.message.video:
+        media_type = "video"
+        file_id = update.message.video.file_id
+    elif update.message.document:
+        media_type = "document"
+        file_id = update.message.document.file_id
+    else:
+        await update.message.reply_text("❌ Tipo de archivo no soportado.")
+        return
+    
+    # Guardar en contexto del usuario
+    context.user_data['pending_media'] = {
+        'type': media_type,
+        'file_id': file_id
+    }
+    
+    await update.message.reply_text(
+        f"📁 **Archivo recibido** ({media_type})\n\n"
+        f"Ahora usa el comando:\n"
+        f"`/add_content Título|Descripción|Precio_en_estrellas`\n\n"
+        f"**Ejemplo:**\n"
+        f"`/add_content Video Premium|Contenido exclusivo|50`",
+        parse_mode='Markdown'
+    )
+
 async def successful_payment(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Maneja pagos exitosos"""
+    if not update.message or not update.message.successful_payment or not update.effective_user:
+        return
+        
     payment = update.message.successful_payment
     user_id = update.effective_user.id
     
@@ -480,7 +621,7 @@ async def successful_payment(update: Update, context: ContextTypes.DEFAULT_TYPE)
     
     await update.message.reply_text(
         f"✅ **¡Compra exitosa!**\n\n"
-        f"Has adquirido: **{content['title']}**\n"
+        f"Has adquirido: **{content['title'] if content else 'Contenido'}**\n"
         f"Pagaste: {payment.total_amount} estrellas ⭐\n\n"
         f"Ya puedes acceder al contenido usando /catalogo",
         parse_mode='Markdown'
@@ -504,6 +645,8 @@ def main():
     application.add_handler(CommandHandler("ayuda", help_command))
     application.add_handler(CommandHandler("catalogo", catalog_command))
     application.add_handler(CommandHandler("admin", admin_command))
+    application.add_handler(CommandHandler("add_content", add_content_command))
+    application.add_handler(MessageHandler(filters.PHOTO | filters.VIDEO | filters.Document.ALL, handle_media))
     
     application.add_handler(CallbackQueryHandler(handle_callback))
     application.add_handler(PreCheckoutQueryHandler(pre_checkout_handler))
