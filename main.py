@@ -205,41 +205,131 @@ class ContentBot:
             }
         return None
 
+async def send_all_posts(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Envía todas las publicaciones como si fuera un canal"""
+    user_id = update.effective_user.id if update.effective_user else 0
+    content_list = content_bot.get_content_list()
+    
+    if not content_list:
+        # Si no hay contenido, enviar mensaje discreto
+        if update.message:
+            await update.message.reply_text("💭 Este canal aún no tiene contenido publicado.")
+        return
+    
+    # Enviar cada publicación como si fuera un post de canal
+    for content in content_list:
+        await send_channel_post(update, context, content, user_id)
+        # Pequeña pausa entre posts para simular canal real
+        import asyncio
+        await asyncio.sleep(0.5)
+
+async def send_channel_post(update: Update, context: ContextTypes.DEFAULT_TYPE, content: Dict, user_id: int):
+    """Envía una publicación individual como si fuera de un canal"""
+    chat_id = update.effective_chat.id if update.effective_chat else user_id
+    
+    # Formatear el caption como un canal premium
+    caption = f"**{content['title']}**\n\n{content['description']}"
+    
+    # Verificar si el usuario ya compró el contenido
+    has_purchased = content_bot.has_purchased_content(user_id, content['id'])
+    
+    # Si es contenido gratuito o ya fue comprado, mostrar directamente
+    if content['price_stars'] == 0 or has_purchased:
+        if content['media_type'] == 'photo':
+            await context.bot.send_photo(
+                chat_id=chat_id,
+                photo=content['media_file_id'],
+                caption=caption,
+                parse_mode='Markdown'
+            )
+        elif content['media_type'] == 'video':
+            await context.bot.send_video(
+                chat_id=chat_id,
+                video=content['media_file_id'],
+                caption=caption,
+                parse_mode='Markdown'
+            )
+        elif content['media_type'] == 'document':
+            await context.bot.send_document(
+                chat_id=chat_id,
+                document=content['media_file_id'],
+                caption=caption,
+                parse_mode='Markdown'
+            )
+        else:
+            await context.bot.send_message(
+                chat_id=chat_id,
+                text=caption,
+                parse_mode='Markdown'
+            )
+    else:
+        # Contenido de pago - usar spoiler nativo con estrellas encima
+        stars_text = f"⭐ {content['price_stars']} estrellas"
+        caption_with_stars = f"{stars_text}\n\n{caption}"
+        
+        # Añadir botón invisible para activar pago
+        keyboard = [[InlineKeyboardButton(
+            f"💰 Desbloquear por {content['price_stars']} ⭐", 
+            callback_data=f"unlock_{content['id']}"
+        )]]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        if content['media_type'] == 'photo':
+            await context.bot.send_photo(
+                chat_id=chat_id,
+                photo=content['media_file_id'],
+                caption=caption_with_stars,
+                parse_mode='Markdown',
+                reply_markup=reply_markup
+            )
+        elif content['media_type'] == 'video':
+            await context.bot.send_video(
+                chat_id=chat_id,
+                video=content['media_file_id'],
+                caption=caption_with_stars,
+                parse_mode='Markdown',
+                reply_markup=reply_markup
+            )
+        elif content['media_type'] == 'document':
+            await context.bot.send_document(
+                chat_id=chat_id,
+                document=content['media_file_id'],
+                caption=caption_with_stars,
+                parse_mode='Markdown',
+                reply_markup=reply_markup
+            )
+        else:
+            # Para texto, simular el spoiler con botón invisible
+            keyboard = [[InlineKeyboardButton(
+                f"💰 Desbloquear por {content['price_stars']} ⭐", 
+                callback_data=f"unlock_{content['id']}"
+            )]]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            
+            spoiler_text = f"{stars_text}\n\n||🔒 {content['title']}\n\nContenido bloqueado - Haz clic para desbloquear||"
+            await context.bot.send_message(
+                chat_id=chat_id,
+                text=spoiler_text,
+                parse_mode='MarkdownV2',
+                reply_markup=reply_markup
+            )
+
 # Instancia global del bot
 content_bot = ContentBot()
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Comando /start"""
+    """Comando /start - Simula la experiencia de un canal"""
     user = update.effective_user
-    if not user:
+    if not user or not update.message:
         return
     
-    # Registrar usuario
+    # Registrar usuario silenciosamente
     content_bot.register_user(
         user.id, user.username or '', user.first_name or '', user.last_name or ''
     )
     
-    welcome_message = f"""
-🌟 ¡Bienvenido al Canal de Contenido Premium! 🌟
-
-Hola {user.first_name or 'Usuario'}, aquí encontrarás contenido exclusivo de alta calidad.
-
-📺 **¿Cómo funciona?**
-• Navega por nuestro catálogo de contenido
-• Algunos contenidos son gratuitos, otros requieren estrellas ⭐
-• Una vez comprado, tendrás acceso ilimitado
-
-🎯 **Comandos disponibles:**
-/catalogo - Ver todo el contenido disponible
-/ayuda - Obtener ayuda
-
-¡Disfruta explorando nuestro contenido! 🚀
-    """
-    
-    if content_bot.is_admin(user.id):
-        welcome_message += "\n🔧 **Panel de Administrador:**\n/admin - Acceder al panel de administración"
-    
-    await update.message.reply_text(welcome_message)
+    # Enviar todas las publicaciones automáticamente (como un canal)
+    await send_all_posts(update, context)
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Comando /ayuda"""
@@ -340,75 +430,21 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = query.from_user.id
     data = query.data
     
-    if data.startswith("view_content_"):
-        content_id = int(data.split("_")[2])
+    if data.startswith("unlock_"):
+        content_id = int(data.split("_")[1])
         content = content_bot.get_content_by_id(content_id)
         
         if not content:
-            await query.edit_message_text("❌ Contenido no encontrado.")
+            await query.answer("❌ Contenido no encontrado.", show_alert=True)
             return
         
-        # Verificar si es gratis o si ya lo compró
-        if content['price_stars'] == 0 or content_bot.has_purchased_content(user_id, content_id):
-            # Mostrar contenido
-            caption = f"📺 **{content['title']}**\n\n{content['description']}"
-            
-            if content['media_type'] == 'photo':
-                await context.bot.send_photo(
-                    chat_id=user_id,
-                    photo=content['media_file_id'],
-                    caption=caption,
-                    parse_mode='Markdown'
-                )
-            elif content['media_type'] == 'video':
-                await context.bot.send_video(
-                    chat_id=user_id,
-                    video=content['media_file_id'],
-                    caption=caption,
-                    parse_mode='Markdown'
-                )
-            elif content['media_type'] == 'document':
-                await context.bot.send_document(
-                    chat_id=user_id,
-                    document=content['media_file_id'],
-                    caption=caption,
-                    parse_mode='Markdown'
-                )
-            else:
-                await query.edit_message_text(caption, parse_mode='Markdown')
-                
-        else:
-            # Mostrar opción de compra
-            keyboard = [[InlineKeyboardButton(
-                f"💫 Comprar por {content['price_stars']} ⭐", 
-                callback_data=f"buy_content_{content_id}"
-            )]]
-            
-            reply_markup = InlineKeyboardMarkup(keyboard)
-            
-            preview_text = f"""
-📺 **{content['title']}**
-
-{content['description']}
-
-💰 **Precio:** {content['price_stars']} estrellas ⭐
-
-🔒 Este contenido requiere compra para acceder.
-            """
-            
-            await query.edit_message_text(
-                preview_text,
-                reply_markup=reply_markup,
-                parse_mode='Markdown'
-            )
-    
-    elif data.startswith("buy_content_"):
-        content_id = int(data.split("_")[2])
-        content = content_bot.get_content_by_id(content_id)
-        
-        if not content:
-            await query.edit_message_text("❌ Contenido no encontrado.")
+        # Verificar si ya compró el contenido
+        if content_bot.has_purchased_content(user_id, content_id):
+            await query.answer("✅ Ya tienes acceso a este contenido.", show_alert=True)
             return
+        
+        # Activar sistema de pago con estrellas nativo
+        await query.answer()
         
         # Crear factura de pago con estrellas
         prices = [LabeledPrice(content['title'], content['price_stars'])]
@@ -422,6 +458,8 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             currency="XTR",  # XTR es para estrellas de Telegram
             prices=prices
         )
+    
+    # Callback anterior removido - ahora se usa unlock_ en su lugar
     
     elif data.startswith("admin_"):
         if not content_bot.is_admin(user_id):
@@ -514,7 +552,7 @@ async def add_content_command(update: Update, context: ContextTypes.DEFAULT_TYPE
         price = int(parts[2].strip())
         
         # Verificar si hay media en el contexto
-        if 'pending_media' not in context.user_data:
+        if not context.user_data or 'pending_media' not in context.user_data:
             await update.message.reply_text(
                 "❌ **No hay archivo pendiente**\n\n"
                 "Primero envía el archivo y luego usa el comando.",
@@ -522,7 +560,9 @@ async def add_content_command(update: Update, context: ContextTypes.DEFAULT_TYPE
             )
             return
         
-        media_data = context.user_data['pending_media']
+        if not context.user_data:
+            context.user_data = {}
+        media_data = context.user_data.get('pending_media', {})
         
         # Añadir contenido
         success = content_bot.add_content(
@@ -540,7 +580,8 @@ async def add_content_command(update: Update, context: ContextTypes.DEFAULT_TYPE
                 parse_mode='Markdown'
             )
             # Limpiar media pendiente
-            del context.user_data['pending_media']
+            if context.user_data and 'pending_media' in context.user_data:
+                del context.user_data['pending_media']
         else:
             await update.message.reply_text("❌ Error al añadir el contenido.")
     
@@ -579,6 +620,8 @@ async def handle_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     
     # Guardar en contexto del usuario
+    if not context.user_data:
+        context.user_data = {}
     context.user_data['pending_media'] = {
         'type': media_type,
         'file_id': file_id
@@ -619,13 +662,50 @@ async def successful_payment(update: Update, context: ContextTypes.DEFAULT_TYPE)
     # Confirmar la compra
     content = content_bot.get_content_by_id(content_id)
     
-    await update.message.reply_text(
-        f"✅ **¡Compra exitosa!**\n\n"
-        f"Has adquirido: **{content['title'] if content else 'Contenido'}**\n"
-        f"Pagaste: {payment.total_amount} estrellas ⭐\n\n"
-        f"Ya puedes acceder al contenido usando /catalogo",
-        parse_mode='Markdown'
-    )
+    # Confirmar la compra y reenviar contenido desbloqueado
+    if content:
+        await update.message.reply_text(
+            f"✅ **¡Compra exitosa!**\n\n"
+            f"**{content['title']}** desbloqueado",
+            parse_mode='Markdown'
+        )
+        
+        # Reenviar el contenido sin spoiler
+        caption = f"**{content['title']}**\n\n{content['description']}"
+        
+        if content['media_type'] == 'photo':
+            await context.bot.send_photo(
+                chat_id=user_id,
+                photo=content['media_file_id'],
+                caption=caption,
+                parse_mode='Markdown'
+            )
+        elif content['media_type'] == 'video':
+            await context.bot.send_video(
+                chat_id=user_id,
+                video=content['media_file_id'],
+                caption=caption,
+                parse_mode='Markdown'
+            )
+        elif content['media_type'] == 'document':
+            await context.bot.send_document(
+                chat_id=user_id,
+                document=content['media_file_id'],
+                caption=caption,
+                parse_mode='Markdown'
+            )
+        else:
+            await context.bot.send_message(
+                chat_id=user_id,
+                text=caption,
+                parse_mode='Markdown'
+            )
+    else:
+        await update.message.reply_text(
+            f"✅ **¡Compra exitosa!**\n\n"
+            f"Pagaste: {payment.total_amount} estrellas ⭐",
+            parse_mode='Markdown'
+        )
 
 def main():
     """Función principal"""
@@ -640,10 +720,10 @@ def main():
     # Crear aplicación
     application = Application.builder().token(BOT_TOKEN).build()
     
-    # Añadir manejadores
+    # Añadir manejadores principales (experiencia de canal)
     application.add_handler(CommandHandler("start", start))
-    application.add_handler(CommandHandler("ayuda", help_command))
-    application.add_handler(CommandHandler("catalogo", catalog_command))
+    
+    # Comandos de administración (ocultos para usuarios normales)
     application.add_handler(CommandHandler("admin", admin_command))
     application.add_handler(CommandHandler("add_content", add_content_command))
     application.add_handler(MessageHandler(filters.PHOTO | filters.VIDEO | filters.Document.ALL, handle_media))

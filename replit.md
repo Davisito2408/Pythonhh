@@ -48,14 +48,20 @@ Bot de Telegram que simula la experiencia de un canal tradicional operando compl
 ## Estado Actual
 - ✅ Estructura base implementada
 - ✅ Sistema de base de datos configurado
-- ✅ Comandos principales implementados
-- ✅ Sistema de pagos con estrellas configurado
-- ⏳ Pendiente: Configuración de credenciales
-- ⏳ Pendiente: Pruebas funcionales
+- ✅ **Experiencia nativa de canal implementada**
+- ✅ Sistema de pagos con estrellas nativo de Telegram
+- ✅ Efecto spoiler para contenido de pago
+- ✅ Eliminación de interfaz de "bot" tradicional
+- ✅ Credenciales configuradas
+- ✅ Bot completamente funcional
 
-## Próximos Pasos
-1. Configurar BOT_TOKEN y ADMIN_USER_ID
-2. Probar funcionalidades básicas
-3. Añadir función para subir contenido desde admin
-4. Implementar gestión avanzada de contenido
-5. Agregar estadísticas detalladas
+## Funcionalidad Clave - Experiencia de Canal
+- **Al usar /start**: No hay mensaje de bienvenida, se muestran automáticamente todas las publicaciones
+- **Contenido gratuito**: Se muestra directamente como en un canal normal
+- **Contenido de pago**: Aparece con precio en estrellas encima y botón para desbloquear
+- **Sistema de pago**: Integración nativa con Telegram Stars
+- **Post-compra**: El contenido se reenvía automáticamente desbloqueado
+
+## Comandos Ocultos (Solo Admin)
+- /admin - Panel de administración
+- /add_content - Subir contenido nuevo
