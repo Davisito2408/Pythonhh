@@ -110,7 +110,7 @@ class ContentBot:
         if user_id and not self.is_admin(user_id):
             # Solo contenido activo para usuarios normales
             cursor.execute('''
-            SELECT id, title, description, media_type, price_stars
+            SELECT id, title, description, media_type, media_file_id, price_stars
             FROM content 
             WHERE is_active = 1
             ORDER BY created_at DESC
@@ -118,7 +118,7 @@ class ContentBot:
         else:
             # Todo el contenido para admin
             cursor.execute('''
-            SELECT id, title, description, media_type, price_stars, is_active
+            SELECT id, title, description, media_type, media_file_id, price_stars, is_active
             FROM content 
             ORDER BY created_at DESC
             ''')
@@ -131,7 +131,8 @@ class ContentBot:
                     'title': row[1],
                     'description': row[2],
                     'media_type': row[3],
-                    'price_stars': row[4]
+                    'media_file_id': row[4],
+                    'price_stars': row[5]
                 })
             else:
                 content.append({
@@ -139,8 +140,9 @@ class ContentBot:
                     'title': row[1],
                     'description': row[2],
                     'media_type': row[3],
-                    'price_stars': row[4],
-                    'is_active': row[5]
+                    'media_file_id': row[4],
+                    'price_stars': row[5],
+                    'is_active': row[6]
                 })
         
         conn.close()
