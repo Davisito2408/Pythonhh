@@ -500,6 +500,228 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 reply_markup=reply_markup,
                 parse_mode='Markdown'
             )
+    
+    # Nuevos callbacks para configuración de contenido
+    elif data == "setup_title":
+        context.user_data['waiting_for'] = 'title'
+        await query.edit_message_text(
+            "✏️ **Establecer Título**\n\n"
+            "Envía el título para tu publicación:",
+            parse_mode='Markdown'
+        )
+    
+    elif data == "setup_description":
+        context.user_data['waiting_for'] = 'description'
+        await query.edit_message_text(
+            "📝 **Establecer Descripción**\n\n"
+            "Envía la descripción para tu publicación:",
+            parse_mode='Markdown'
+        )
+    
+    elif data == "setup_price":
+        price_keyboard = [
+            [InlineKeyboardButton("Gratuito (0 ⭐)", callback_data="price_0")],
+            [InlineKeyboardButton("5 ⭐", callback_data="price_5"), InlineKeyboardButton("10 ⭐", callback_data="price_10")],
+            [InlineKeyboardButton("25 ⭐", callback_data="price_25"), InlineKeyboardButton("50 ⭐", callback_data="price_50")],
+            [InlineKeyboardButton("100 ⭐", callback_data="price_100"), InlineKeyboardButton("200 ⭐", callback_data="price_200")],
+            [InlineKeyboardButton("✏️ Precio personalizado", callback_data="price_custom")],
+            [InlineKeyboardButton("⬅️ Volver", callback_data="back_to_setup")]
+        ]
+        
+        reply_markup = InlineKeyboardMarkup(price_keyboard)
+        
+        await query.edit_message_text(
+            "💰 **Establecer Precio**\n\n"
+            "Selecciona el precio en estrellas para tu contenido:",
+            parse_mode='Markdown',
+            reply_markup=reply_markup
+        )
+    
+    elif data.startswith("price_"):
+        if data == "price_custom":
+            context.user_data['waiting_for'] = 'custom_price'
+            await query.edit_message_text(
+                "💰 **Precio Personalizado**\n\n"
+                "Envía el número de estrellas (ejemplo: 75):",
+                parse_mode='Markdown'
+            )
+        else:
+            price = int(data.split("_")[1])
+            context.user_data['pending_media']['price'] = price
+            await show_content_preview(query, context)
+    
+    elif data == "back_to_setup":
+        await show_content_preview(query, context)
+    
+    elif data == "publish_content":
+        media_data = context.user_data.get('pending_media', {})
+        
+        if not media_data.get('title') or not media_data.get('description'):
+            await query.answer("❌ Falta título o descripción", show_alert=True)
+            return
+        
+        # Publicar contenido
+        success = content_bot.add_content(
+            media_data['title'],
+            media_data['description'], 
+            media_data['type'],
+            media_data['file_id'],
+            media_data['price']
+        )
+        
+        if success:
+            await query.edit_message_text(
+                f"✅ **¡Contenido publicado!**\n\n"
+                f"📺 **Título:** {media_data['title']}\n"
+                f"📝 **Descripción:** {media_data['description']}\n"
+                f"💰 **Precio:** {media_data['price']} estrellas\n\n"
+                f"Ya está disponible para los usuarios.",
+                parse_mode='Markdown'
+            )
+            # Limpiar datos
+            if 'pending_media' in context.user_data:
+                del context.user_data['pending_media']
+            if 'waiting_for' in context.user_data:
+                del context.user_data['waiting_for']
+        else:
+            await query.answer("❌ Error al publicar", show_alert=True)
+    
+    elif data == "cancel_upload":
+        await query.edit_message_text(
+            "❌ **Subida cancelada**\n\n"
+            "El archivo no se ha publicado.",
+            parse_mode='Markdown'
+        )
+        # Limpiar datos
+        if 'pending_media' in context.user_data:
+            del context.user_data['pending_media']
+        if 'waiting_for' in context.user_data:
+            del context.user_data['waiting_for']
+
+async def show_content_preview(query, context: ContextTypes.DEFAULT_TYPE):
+    """Muestra vista previa del contenido en configuración"""
+    media_data = context.user_data.get('pending_media', {})
+    
+    title = media_data.get('title', '_No establecido_')
+    description = media_data.get('description', '_No establecida_')
+    price = media_data.get('price', 0)
+    media_type = media_data.get('type', 'desconocido')
+    
+    price_text = "**Gratuito**" if price == 0 else f"**{price} estrellas**"
+    
+    keyboard = [
+        [InlineKeyboardButton("✏️ Establecer Título", callback_data="setup_title")],
+        [InlineKeyboardButton("📝 Establecer Descripción", callback_data="setup_description")],
+        [InlineKeyboardButton("💰 Establecer Precio", callback_data="setup_price")],
+        [InlineKeyboardButton("✅ Publicar Contenido", callback_data="publish_content")],
+        [InlineKeyboardButton("❌ Cancelar", callback_data="cancel_upload")]
+    ]
+    
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    
+    preview_text = (
+        f"📁 **Archivo recibido** ({media_type})\n\n"
+        f"🔧 **Configuración actual:**\n"
+        f"✏️ Título: {title}\n"
+        f"📝 Descripción: {description}\n"
+        f"💰 Precio: {price_text}\n\n"
+        f"Usa los botones para configurar tu publicación:"
+    )
+    
+    await query.edit_message_text(
+        preview_text,
+        parse_mode='Markdown',
+        reply_markup=reply_markup
+    )
+
+async def handle_text_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Maneja entrada de texto para configuración de contenido"""
+    if not update.effective_user or not update.message or not update.message.text:
+        return
+        
+    user_id = update.effective_user.id
+    
+    if not content_bot.is_admin(user_id):
+        return
+    
+    waiting_for = context.user_data.get('waiting_for')
+    
+    if waiting_for == 'title':
+        context.user_data['pending_media']['title'] = update.message.text
+        await update.message.reply_text(
+            f"✅ **Título establecido:** {update.message.text}\n\n"
+            f"Ahora puedes continuar configurando tu publicación:",
+            parse_mode='Markdown'
+        )
+        del context.user_data['waiting_for']
+        
+        # Mostrar preview actualizado
+        keyboard = [
+            [InlineKeyboardButton("✏️ Cambiar Título", callback_data="setup_title")],
+            [InlineKeyboardButton("📝 Establecer Descripción", callback_data="setup_description")],
+            [InlineKeyboardButton("💰 Establecer Precio", callback_data="setup_price")],
+            [InlineKeyboardButton("✅ Publicar Contenido", callback_data="publish_content")],
+            [InlineKeyboardButton("❌ Cancelar", callback_data="cancel_upload")]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await update.message.reply_text(
+            "Continuar configuración:",
+            reply_markup=reply_markup
+        )
+    
+    elif waiting_for == 'description':
+        context.user_data['pending_media']['description'] = update.message.text
+        await update.message.reply_text(
+            f"✅ **Descripción establecida:** {update.message.text}\n\n"
+            f"Ahora puedes continuar configurando tu publicación:",
+            parse_mode='Markdown'
+        )
+        del context.user_data['waiting_for']
+        
+        # Mostrar preview actualizado
+        keyboard = [
+            [InlineKeyboardButton("✏️ Establecer Título", callback_data="setup_title")],
+            [InlineKeyboardButton("📝 Cambiar Descripción", callback_data="setup_description")],
+            [InlineKeyboardButton("💰 Establecer Precio", callback_data="setup_price")],
+            [InlineKeyboardButton("✅ Publicar Contenido", callback_data="publish_content")],
+            [InlineKeyboardButton("❌ Cancelar", callback_data="cancel_upload")]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await update.message.reply_text(
+            "Continuar configuración:",
+            reply_markup=reply_markup
+        )
+    
+    elif waiting_for == 'custom_price':
+        try:
+            price = int(update.message.text)
+            if price < 0:
+                await update.message.reply_text("❌ El precio no puede ser negativo. Inténtalo de nuevo:")
+                return
+            
+            context.user_data['pending_media']['price'] = price
+            await update.message.reply_text(
+                f"✅ **Precio establecido:** {price} estrellas\n\n"
+                f"Ahora puedes continuar configurando tu publicación:",
+                parse_mode='Markdown'
+            )
+            del context.user_data['waiting_for']
+            
+            # Mostrar preview actualizado
+            keyboard = [
+                [InlineKeyboardButton("✏️ Establecer Título", callback_data="setup_title")],
+                [InlineKeyboardButton("📝 Establecer Descripción", callback_data="setup_description")],
+                [InlineKeyboardButton("💰 Cambiar Precio", callback_data="setup_price")],
+                [InlineKeyboardButton("✅ Publicar Contenido", callback_data="publish_content")],
+                [InlineKeyboardButton("❌ Cancelar", callback_data="cancel_upload")]
+            ]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            await update.message.reply_text(
+                "Continuar configuración:",
+                reply_markup=reply_markup
+            )
+        except ValueError:
+            await update.message.reply_text("❌ Debes enviar un número válido. Inténtalo de nuevo:")
 
 async def pre_checkout_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Maneja la verificación previa al pago"""
@@ -560,8 +782,6 @@ async def add_content_command(update: Update, context: ContextTypes.DEFAULT_TYPE
             )
             return
         
-        if not context.user_data:
-            context.user_data = {}
         media_data = context.user_data.get('pending_media', {})
         
         # Añadir contenido
@@ -619,21 +839,35 @@ async def handle_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("❌ Tipo de archivo no soportado.")
         return
     
-    # Guardar en contexto del usuario
-    if not context.user_data:
-        context.user_data = {}
+    # Guardar en contexto del usuario y mostrar botones de configuración
     context.user_data['pending_media'] = {
         'type': media_type,
-        'file_id': file_id
+        'file_id': file_id,
+        'title': '',
+        'description': '',
+        'price': 0
     }
+    
+    # Mostrar botones para configurar el contenido
+    keyboard = [
+        [InlineKeyboardButton("✏️ Establecer Título", callback_data="setup_title")],
+        [InlineKeyboardButton("📝 Establecer Descripción", callback_data="setup_description")],
+        [InlineKeyboardButton("💰 Establecer Precio", callback_data="setup_price")],
+        [InlineKeyboardButton("✅ Publicar Contenido", callback_data="publish_content")],
+        [InlineKeyboardButton("❌ Cancelar", callback_data="cancel_upload")]
+    ]
+    
+    reply_markup = InlineKeyboardMarkup(keyboard)
     
     await update.message.reply_text(
         f"📁 **Archivo recibido** ({media_type})\n\n"
-        f"Ahora usa el comando:\n"
-        f"`/add_content Título|Descripción|Precio_en_estrellas`\n\n"
-        f"**Ejemplo:**\n"
-        f"`/add_content Video Premium|Contenido exclusivo|50`",
-        parse_mode='Markdown'
+        f"🔧 **Configurar publicación:**\n"
+        f"✏️ Título: _No establecido_\n"
+        f"📝 Descripción: _No establecida_\n"
+        f"💰 Precio: **0 estrellas** (gratuito)\n\n"
+        f"Usa los botones para configurar tu publicación:",
+        parse_mode='Markdown',
+        reply_markup=reply_markup
     )
 
 async def successful_payment(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -727,6 +961,9 @@ def main():
     application.add_handler(CommandHandler("admin", admin_command))
     application.add_handler(CommandHandler("add_content", add_content_command))
     application.add_handler(MessageHandler(filters.PHOTO | filters.VIDEO | filters.Document.ALL, handle_media))
+    
+    # Manejador de texto para configuración de contenido
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text_input))
     
     application.add_handler(CallbackQueryHandler(handle_callback))
     application.add_handler(PreCheckoutQueryHandler(pre_checkout_handler))

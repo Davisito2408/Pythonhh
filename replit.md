@@ -40,7 +40,13 @@ Bot de Telegram que simula la experiencia de un canal tradicional operando compl
 
 ### Para Administrador
 - /admin: Panel de administración
-- Añadir contenido con precios en estrellas
+- **Sistema simplificado de subida de contenido:**
+  - Enviar archivo → Aparecen botones automáticamente
+  - Botones para establecer título, descripción y precio
+  - Opciones de precio predefinidas (5, 10, 25, 50, 100, 200 estrellas)
+  - Opción de precio personalizado
+  - Vista previa antes de publicar
+  - **¡Sin comandos complicados!**
 - Gestionar contenido existente
 - Ver estadísticas de uso
 - Control total del sistema
@@ -53,7 +59,8 @@ Bot de Telegram que simula la experiencia de un canal tradicional operando compl
 - ✅ Efecto spoiler para contenido de pago
 - ✅ Eliminación de interfaz de "bot" tradicional
 - ✅ Credenciales configuradas
-- ✅ Bot completamente funcional
+- ✅ **Sistema simplificado de subida de contenido con botones**
+- ✅ Bot completamente funcional y fácil de usar
 
 ## Funcionalidad Clave - Experiencia de Canal
 - **Al usar /start**: No hay mensaje de bienvenida, se muestran automáticamente todas las publicaciones
