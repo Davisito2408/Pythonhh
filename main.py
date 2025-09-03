@@ -309,22 +309,38 @@ class ContentBot:
         try:
             # Para simplificar, guardaremos el primer archivo como referencia principal
             # En una implementación más compleja, podrías crear una tabla separada para grupos
-            main_file = files[0] if files else {}
             media_type = "media_group"  # Tipo especial para grupos
             
             # Serializar información de todos los archivos en el campo description
             import json
+            # Extraer solo los datos serializables de los archivos
+            serializable_files = []
+            for file_data in files:
+                if isinstance(file_data, dict):
+                    # Ya es un dict serializable
+                    serializable_files.append(file_data)
+                else:
+                    # Es un objeto Message u otro objeto, extraer datos básicos
+                    serializable_files.append({
+                        'file_id': getattr(file_data, 'file_id', ''),
+                        'type': getattr(file_data, 'type', 'unknown'),
+                        'file_size': getattr(file_data, 'file_size', 0)
+                    })
+            
             group_info = {
                 'description': description,
-                'files': files,
-                'total_files': len(files)
+                'files': serializable_files,
+                'total_files': len(serializable_files)
             }
             serialized_description = json.dumps(group_info, ensure_ascii=False)
+            
+            # Usar el file_id del primer archivo serializable
+            main_file_id = serializable_files[0].get('file_id', '') if serializable_files else ''
             
             cursor.execute('''
             INSERT INTO content (title, description, media_type, media_file_id, price_stars)
             VALUES (?, ?, ?, ?, ?)
-            ''', (title, serialized_description, media_type, main_file.get('file_id', ''), price_stars))
+            ''', (title, serialized_description, media_type, main_file_id, price_stars))
             
             content_id = cursor.lastrowid
             conn.commit()
