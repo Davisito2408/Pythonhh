@@ -396,7 +396,15 @@ async def send_channel_post(update: Update, context: ContextTypes.DEFAULT_TYPE, 
             )
         elif content['media_type'] == 'document':
             # Para documentos, usar mensaje de texto con botón de pago manual
+            stars_text = f"⭐ {content['price_stars']} estrellas"
             blocked_text = f"{stars_text}\n\n🔒 **{content['title']}**\n\n_Documento premium_\n\n{content['description']}"
+            
+            keyboard = [[InlineKeyboardButton(
+                f"💰 Desbloquear por {content['price_stars']} ⭐", 
+                callback_data=f"unlock_{content['id']}"
+            )]]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            
             await context.bot.send_message(
                 chat_id=chat_id,
                 text=blocked_text,
@@ -405,6 +413,7 @@ async def send_channel_post(update: Update, context: ContextTypes.DEFAULT_TYPE, 
             )
         else:
             # Para texto, simular el spoiler con botón invisible
+            stars_text = f"⭐ {content['price_stars']} estrellas"
             keyboard = [[InlineKeyboardButton(
                 f"💰 Desbloquear por {content['price_stars']} ⭐", 
                 callback_data=f"unlock_{content['id']}"
@@ -788,29 +797,9 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if content_bot.delete_content(content_id):
             await query.edit_message_text(
                 f"✅ **Contenido eliminado exitosamente**\n\n"
-                f"El contenido ha sido eliminado permanentemente.\n"
-                f"Se está notificando a todos los usuarios...",
+                f"El contenido ha sido eliminado permanentemente de la base de datos.",
                 parse_mode='Markdown'
             )
-            
-            # Notificar a todos los usuarios sobre el contenido actualizado
-            users = content_bot.get_all_users()
-            notification_text = (
-                "🔄 **Contenido actualizado**\n\n"
-                "El canal ha sido actualizado. Usa /start para ver el contenido actual."
-            )
-            
-            for user_id_notify in users:
-                try:
-                    await context.bot.send_message(
-                        chat_id=user_id_notify,
-                        text=notification_text,
-                        parse_mode='Markdown'
-                    )
-                    import asyncio
-                    await asyncio.sleep(0.1)
-                except Exception as e:
-                    logger.error(f"Error notificando usuario {user_id_notify}: {e}")
         else:
             await query.edit_message_text(
                 f"❌ **Error al eliminar**\n\n"
@@ -891,14 +880,6 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.edit_message_text("❌ Sin permisos de administrador.")
             return
         
-        await query.edit_message_text(
-            f"🧹 **Limpiar chats enviado**\n\n"
-            f"Se ha enviado un mensaje informativo a todos los usuarios "
-            f"notificando que el contenido ha sido actualizado.\n\n"
-            f"**Nota:** Los usuarios pueden usar /start para ver el contenido actualizado.",
-            parse_mode='Markdown'
-        )
-        
         # Enviar notificación a todos los usuarios
         users = content_bot.get_all_users()
         notification_text = (
@@ -906,6 +887,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "El canal ha sido actualizado. Usa /start para ver el contenido actual."
         )
         
+        sent_count = 0
         for user_id_notify in users:
             try:
                 await context.bot.send_message(
@@ -913,10 +895,17 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     text=notification_text,
                     parse_mode='Markdown'
                 )
+                sent_count += 1
                 import asyncio
                 await asyncio.sleep(0.1)
             except Exception as e:
                 logger.error(f"Error notificando usuario {user_id_notify}: {e}")
+        
+        await query.edit_message_text(
+            f"🧹 **Notificación enviada**\n\n"
+            f"Se ha enviado mensaje de actualización a {sent_count} usuarios.",
+            parse_mode='Markdown'
+        )
     
     elif data == "export_stats":
         if not content_bot.is_admin(user_id):
