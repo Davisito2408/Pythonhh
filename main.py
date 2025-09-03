@@ -426,15 +426,20 @@ async def broadcast_new_content(context: ContextTypes.DEFAULT_TYPE, content_id: 
 
 async def broadcast_media_group(context: ContextTypes.DEFAULT_TYPE, content_id: int, media_items: List, title: str, description: str, price: int):
     """Envía grupo de medios a todos los usuarios registrados usando sendMediaGroup nativo"""
+    logger.info(f"Iniciando broadcast de grupo {content_id} con {len(media_items)} archivos para precio {price}")
     users = content_bot.get_all_users()
+    logger.info(f"Encontrados {len(users)} usuarios para enviar")
     
     if not media_items:
+        logger.error("No hay media_items para enviar")
         return
     
     for user_id in users:
         try:
+            logger.info(f"Enviando grupo a usuario {user_id}, precio: {price}")
             if price > 0:
                 # Para contenido pagado, crear mensaje con precio
+                logger.info(f"Creando preview de pago para usuario {user_id}")
                 keyboard = [[InlineKeyboardButton(f"🔓 Desbloquear ({price} ⭐)", callback_data=f"unlock_{content_id}")]]
                 reply_markup = InlineKeyboardMarkup(keyboard)
                 
@@ -446,12 +451,15 @@ async def broadcast_media_group(context: ContextTypes.DEFAULT_TYPE, content_id: 
                     parse_mode='Markdown',
                     reply_markup=reply_markup
                 )
+                logger.info(f"Preview enviado a usuario {user_id}")
             else:
                 # Para contenido gratuito, enviar el grupo completo directamente
+                logger.info(f"Enviando media group gratuito a usuario {user_id}")
                 await context.bot.send_media_group(
                     chat_id=user_id,
                     media=media_items
                 )
+                logger.info(f"Media group enviado a usuario {user_id}")
             
             # Pequeña pausa para evitar spam
             import asyncio
