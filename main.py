@@ -2282,7 +2282,6 @@ def main():
         # Comandos para usuarios normales (menú básico)
         user_commands = [
             BotCommand("start", "🏠 Ver contenido del canal"),
-            BotCommand("catalogo", "📋 Ver catálogo disponible"),
             BotCommand("ayuda", "❓ Obtener ayuda")
         ]
         
