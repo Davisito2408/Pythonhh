@@ -149,8 +149,8 @@ class ContentBot:
         return content
 
     def add_content(self, title: str, description: str, media_type: str, 
-                   media_file_id: str, price_stars: int = 0) -> bool:
-        """Añade nuevo contenido"""
+                   media_file_id: str, price_stars: int = 0) -> Optional[int]:
+        """Añade nuevo contenido y devuelve el ID"""
         conn = sqlite3.connect(DATABASE_NAME)
         cursor = conn.cursor()
         
@@ -160,13 +160,14 @@ class ContentBot:
             VALUES (?, ?, ?, ?, ?)
             ''', (title, description, media_type, media_file_id, price_stars))
             
+            content_id = cursor.lastrowid
             conn.commit()
             conn.close()
-            return True
+            return content_id
         except Exception as e:
             logger.error(f"Error añadiendo contenido: {e}")
             conn.close()
-            return False
+            return None
 
     def has_purchased_content(self, user_id: int, content_id: int) -> bool:
         """Verifica si el usuario ha comprado el contenido"""
@@ -206,6 +207,47 @@ class ContentBot:
                 'price_stars': row[5]
             }
         return None
+    
+    def get_all_users(self) -> List[int]:
+        """Obtiene lista de todos los usuarios registrados"""
+        conn = sqlite3.connect(DATABASE_NAME)
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+        SELECT user_id FROM users WHERE is_active = 1
+        ''')
+        
+        users = [row[0] for row in cursor.fetchall()]
+        conn.close()
+        return users
+
+async def broadcast_new_content(context: ContextTypes.DEFAULT_TYPE, content_id: int):
+    """Envía nuevo contenido a todos los usuarios registrados"""
+    users = content_bot.get_all_users()
+    content = content_bot.get_content_by_id(content_id)
+    
+    if not content:
+        return
+    
+    for user_id in users:
+        try:
+            # Crear update falso para send_channel_post
+            chat_id = user_id
+            
+            # Simular estructura para send_channel_post
+            class FakeUpdate:
+                def __init__(self, user_id):
+                    self.effective_chat = type('obj', (object,), {'id': user_id})
+                    self.effective_user = type('obj', (object,), {'id': user_id})
+            
+            fake_update = FakeUpdate(user_id)
+            await send_channel_post(fake_update, context, content, user_id)
+            
+            # Pequeña pausa para evitar spam
+            import asyncio
+            await asyncio.sleep(0.1)
+        except Exception as e:
+            logger.error(f"Error enviando contenido a usuario {user_id}: {e}")
 
 async def send_all_posts(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Envía todas las publicaciones como si fuera un canal"""
@@ -277,31 +319,31 @@ async def send_channel_post(update: Update, context: ContextTypes.DEFAULT_TYPE, 
         reply_markup = InlineKeyboardMarkup(keyboard)
         
         if content['media_type'] == 'photo':
-            await context.bot.send_photo(
+            # En lugar de mostrar la imagen real, mostrar placeholder bloqueado
+            blocked_text = f"{stars_text}\n\n🔒 **{content['title']}**\n\n_Imagen premium bloqueada_\n\n{content['description']}"
+            await context.bot.send_message(
                 chat_id=chat_id,
-                photo=content['media_file_id'],
-                caption=caption_with_stars,
+                text=blocked_text,
                 parse_mode='Markdown',
-                reply_markup=reply_markup,
-                has_spoiler=True
+                reply_markup=reply_markup
             )
         elif content['media_type'] == 'video':
-            await context.bot.send_video(
+            # En lugar de mostrar el video real, mostrar placeholder bloqueado
+            blocked_text = f"{stars_text}\n\n🔒 **{content['title']}**\n\n_Video premium bloqueado_\n\n{content['description']}"
+            await context.bot.send_message(
                 chat_id=chat_id,
-                video=content['media_file_id'],
-                caption=caption_with_stars,
+                text=blocked_text,
                 parse_mode='Markdown',
-                reply_markup=reply_markup,
-                has_spoiler=True
+                reply_markup=reply_markup
             )
         elif content['media_type'] == 'document':
-            await context.bot.send_document(
+            # En lugar de mostrar el documento real, mostrar placeholder bloqueado
+            blocked_text = f"{stars_text}\n\n🔒 **{content['title']}**\n\n_Documento premium bloqueado_\n\n{content['description']}"
+            await context.bot.send_message(
                 chat_id=chat_id,
-                document=content['media_file_id'],
-                caption=caption_with_stars,
+                text=blocked_text,
                 parse_mode='Markdown',
-                reply_markup=reply_markup,
-                has_spoiler=True
+                reply_markup=reply_markup
             )
         else:
             # Para texto, simular el spoiler con botón invisible
@@ -566,7 +608,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
         
         # Publicar contenido
-        success = content_bot.add_content(
+        content_id = content_bot.add_content(
             media_data['title'],
             media_data['description'], 
             media_data['type'],
@@ -574,15 +616,29 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             media_data['price']
         )
         
-        if success:
+        if content_id:
             await query.edit_message_text(
                 f"✅ **¡Contenido publicado!**\n\n"
                 f"📺 **Título:** {media_data['title']}\n"
                 f"📝 **Descripción:** {media_data['description']}\n"
                 f"💰 **Precio:** {media_data['price']} estrellas\n\n"
-                f"Ya está disponible para los usuarios.",
+                f"📡 **Enviando a todos los usuarios...**",
                 parse_mode='Markdown'
             )
+            
+            # Enviar automáticamente a todos los usuarios
+            await broadcast_new_content(context, content_id)
+            
+            # Actualizar mensaje de confirmación
+            await query.edit_message_text(
+                f"✅ **¡Contenido publicado y enviado!**\n\n"
+                f"📺 **Título:** {media_data['title']}\n"
+                f"📝 **Descripción:** {media_data['description']}\n"
+                f"💰 **Precio:** {media_data['price']} estrellas\n\n"
+                f"✉️ **Enviado a todos los usuarios del canal**",
+                parse_mode='Markdown'
+            )
+            
             # Limpiar datos
             if 'pending_media' in context.user_data:
                 del context.user_data['pending_media']
