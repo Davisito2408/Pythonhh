@@ -63,7 +63,10 @@ Bot de Telegram que simula la experiencia de un canal tradicional operando compl
 - ✅ **Panel de administración completo funcionando**
 - ✅ **Eliminación silenciosa de contenido con actualización automática**
 - ✅ **Estadísticas y configuración del bot operativas**
-- ✅ Bot completamente funcional y fácil de usar
+- ✅ **NUEVA: Detección automática de archivos individuales vs grupos**
+- ✅ **NUEVA: Sistema de `sendMediaGroup` nativo de Telegram integrado**
+- ✅ **NUEVA: Publicación de álbumes con precio y descripción únicos**
+- ✅ Bot completamente funcional y fácil de usar como canal real
 
 ## Configuración Replit
 - ✅ **Importado exitosamente a Replit**
@@ -80,6 +83,15 @@ Bot de Telegram que simula la experiencia de un canal tradicional operando compl
 - **Contenido de pago**: Aparece con precio en estrellas encima y botón para desbloquear
 - **Sistema de pago**: Integración nativa con Telegram Stars
 - **Post-compra**: El contenido se reenvía automáticamente desbloqueado
+
+## Nueva Funcionalidad - Detección Automática de Archivos
+- **🔍 Detección inteligente**: El bot detecta automáticamente si envías 1 archivo o múltiples
+- **📁 Archivo individual**: Configuración individual con título, descripción y precio único
+- **📦 Múltiples archivos**: Se detectan automáticamente como grupo usando `media_group_id`
+- **⏱️ Sistema de timer**: Espera 0.5 segundos para agrupar todos los archivos
+- **🏷️ Configuración unificada**: Un solo título, descripción y precio para todo el grupo
+- **📨 Publicación nativa**: Usa `sendMediaGroup` oficial de Telegram para álbumes
+- **💡 Experiencia simplificada**: Como los canales reales de Telegram, sin comandos complejos
 
 ## Comandos Ocultos (Solo Admin)
 - /admin - Panel de administración completo

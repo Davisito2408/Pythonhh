@@ -7,13 +7,15 @@ Simula la experiencia de un canal tradicional en chats privados
 import logging
 import os
 import sqlite3
+import asyncio
 from typing import Optional, List, Dict, Any, Union
 from datetime import datetime
+from collections import defaultdict
 
 from telegram import (
     Update, InlineKeyboardButton, InlineKeyboardMarkup, 
     LabeledPrice, PreCheckoutQuery, Message, InputPaidMediaPhoto, 
-    InputPaidMediaVideo
+    InputPaidMediaVideo, InputMediaPhoto, InputMediaVideo, InputMediaDocument
 )
 from telegram.ext import (
     Application, CommandHandler, CallbackQueryHandler, 
@@ -39,6 +41,10 @@ logger = logging.getLogger(__name__)
 BOT_TOKEN = os.getenv('BOT_TOKEN', '')
 ADMIN_USER_ID = int(os.getenv('ADMIN_USER_ID', '0'))
 DATABASE_NAME = 'bot_content.db'
+
+# Variables globales para media groups
+media_groups = defaultdict(list)
+pending_groups = {}
 
 class ContentBot:
     def __init__(self):
@@ -294,6 +300,79 @@ class ContentBot:
             'total_stars': total_stars,
             'top_content': top_content
         }
+    
+    def add_media_group_content(self, title: str, description: str, files: List[Dict], price_stars: int = 0) -> Optional[int]:
+        """Añade contenido de grupo de medios y devuelve el ID"""
+        conn = sqlite3.connect(DATABASE_NAME)
+        cursor = conn.cursor()
+        
+        try:
+            # Para simplificar, guardaremos el primer archivo como referencia principal
+            # En una implementación más compleja, podrías crear una tabla separada para grupos
+            main_file = files[0] if files else {}
+            media_type = "media_group"  # Tipo especial para grupos
+            
+            # Serializar información de todos los archivos en el campo description
+            import json
+            group_info = {
+                'description': description,
+                'files': files,
+                'total_files': len(files)
+            }
+            serialized_description = json.dumps(group_info, ensure_ascii=False)
+            
+            cursor.execute('''
+            INSERT INTO content (title, description, media_type, media_file_id, price_stars)
+            VALUES (?, ?, ?, ?, ?)
+            ''', (title, serialized_description, media_type, main_file.get('file_id', ''), price_stars))
+            
+            content_id = cursor.lastrowid
+            conn.commit()
+            conn.close()
+            return content_id
+        except Exception as e:
+            logger.error(f"Error añadiendo grupo de contenido: {e}")
+            conn.close()
+            return None
+    
+    def get_media_group_by_id(self, content_id: int) -> Optional[Dict]:
+        """Obtiene grupo de medios por ID"""
+        conn = sqlite3.connect(DATABASE_NAME)
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+        SELECT id, title, description, media_type, media_file_id, price_stars
+        FROM content 
+        WHERE id = ? AND is_active = 1 AND media_type = 'media_group'
+        ''', (content_id,))
+        
+        row = cursor.fetchone()
+        conn.close()
+        
+        if row:
+            import json
+            try:
+                group_info = json.loads(row[2])  # description contiene la info serializada
+                return {
+                    'id': row[0],
+                    'title': row[1],
+                    'description': group_info.get('description', ''),
+                    'media_type': row[3],
+                    'files': group_info.get('files', []),
+                    'total_files': group_info.get('total_files', 0),
+                    'price_stars': row[5]
+                }
+            except json.JSONDecodeError:
+                # Fallback si hay problema con el JSON
+                return {
+                    'id': row[0],
+                    'title': row[1],
+                    'description': row[2],
+                    'media_type': row[3],
+                    'files': [],
+                    'price_stars': row[5]
+                }
+        return None
 
 async def update_all_user_chats(context: ContextTypes.DEFAULT_TYPE):
     """Actualiza silenciosamente los chats de todos los usuarios enviando contenido actualizado"""
@@ -344,6 +423,41 @@ async def broadcast_new_content(context: ContextTypes.DEFAULT_TYPE, content_id: 
             await asyncio.sleep(0.1)
         except Exception as e:
             logger.error(f"Error enviando contenido a usuario {user_id}: {e}")
+
+async def broadcast_media_group(context: ContextTypes.DEFAULT_TYPE, content_id: int, media_items: List, title: str, description: str, price: int):
+    """Envía grupo de medios a todos los usuarios registrados usando sendMediaGroup nativo"""
+    users = content_bot.get_all_users()
+    
+    if not media_items:
+        return
+    
+    for user_id in users:
+        try:
+            if price > 0:
+                # Para contenido pagado, crear mensaje con precio
+                keyboard = [[InlineKeyboardButton(f"🔓 Desbloquear ({price} ⭐)", callback_data=f"unlock_{content_id}")]]
+                reply_markup = InlineKeyboardMarkup(keyboard)
+                
+                # Enviar mensaje de preview para contenido pagado
+                preview_caption = f"**{title}**\n\n{description}\n\n💰 **Precio:** {price} estrellas ⭐"
+                await context.bot.send_message(
+                    chat_id=user_id,
+                    text=preview_caption,
+                    parse_mode='Markdown',
+                    reply_markup=reply_markup
+                )
+            else:
+                # Para contenido gratuito, enviar el grupo completo directamente
+                await context.bot.send_media_group(
+                    chat_id=user_id,
+                    media=media_items
+                )
+            
+            # Pequeña pausa para evitar spam
+            import asyncio
+            await asyncio.sleep(0.2)
+        except Exception as e:
+            logger.error(f"Error enviando grupo a usuario {user_id}: {e}")
 
 async def send_all_posts(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Envía todas las publicaciones como si fuera un canal"""
@@ -850,8 +964,72 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Limpiar datos
         if 'pending_media' in context.user_data:
             del context.user_data['pending_media']
+        if 'media_group' in context.user_data:
+            del context.user_data['media_group']
         if 'waiting_for' in context.user_data:
             del context.user_data['waiting_for']
+    
+    # === NUEVOS CALLBACKS PARA GRUPOS DE ARCHIVOS ===
+    elif data == "setup_group_title":
+        context.user_data['waiting_for'] = 'group_title'
+        await query.edit_message_text(
+            "✏️ **Título del Grupo**\n\n"
+            "Envía el título para todo el grupo de archivos:",
+            parse_mode='Markdown'
+        )
+    
+    elif data == "setup_group_description":
+        context.user_data['waiting_for'] = 'group_description'
+        await query.edit_message_text(
+            "📝 **Descripción del Grupo**\n\n"
+            "Envía la descripción que se aplicará a todo el grupo:",
+            parse_mode='Markdown'
+        )
+    
+    elif data == "setup_group_price":
+        price_keyboard = [
+            [InlineKeyboardButton("Gratuito (0 ⭐)", callback_data="group_price_0")],
+            [InlineKeyboardButton("5 ⭐", callback_data="group_price_5"), InlineKeyboardButton("10 ⭐", callback_data="group_price_10")],
+            [InlineKeyboardButton("25 ⭐", callback_data="group_price_25"), InlineKeyboardButton("50 ⭐", callback_data="group_price_50")],
+            [InlineKeyboardButton("100 ⭐", callback_data="group_price_100"), InlineKeyboardButton("200 ⭐", callback_data="group_price_200")],
+            [InlineKeyboardButton("✏️ Precio personalizado", callback_data="group_price_custom")],
+            [InlineKeyboardButton("⬅️ Volver", callback_data="back_to_group_setup")]
+        ]
+        
+        reply_markup = InlineKeyboardMarkup(price_keyboard)
+        
+        await query.edit_message_text(
+            "💰 **Precio del Grupo**\n\n"
+            "Selecciona el precio único para todo el grupo:",
+            parse_mode='Markdown',
+            reply_markup=reply_markup
+        )
+    
+    elif data.startswith("group_price_"):
+        if data == "group_price_custom":
+            context.user_data['waiting_for'] = 'group_custom_price'
+            await query.edit_message_text(
+                "💰 **Precio Personalizado del Grupo**\n\n"
+                "Envía el número de estrellas para todo el grupo:",
+                parse_mode='Markdown'
+            )
+        else:
+            price = int(data.split("_")[2])
+            context.user_data['media_group']['price'] = price
+            await show_group_preview(query, context)
+    
+    elif data == "back_to_group_setup":
+        await show_group_preview(query, context)
+    
+    elif data == "publish_group":
+        media_group_data = context.user_data.get('media_group', {})
+        
+        if not media_group_data.get('title') or not media_group_data.get('description'):
+            await query.answer("❌ Falta título o descripción del grupo", show_alert=True)
+            return
+        
+        # Publicar grupo usando sendMediaGroup nativo
+        await publish_media_group(query, context, media_group_data)
     
     # === NUEVOS CALLBACKS PARA MÚLTIPLES ARCHIVOS ===
     elif data == "view_queue":
@@ -1283,6 +1461,145 @@ async def show_content_preview(query, context: ContextTypes.DEFAULT_TYPE):
         reply_markup=reply_markup
     )
 
+async def show_group_preview(query, context: ContextTypes.DEFAULT_TYPE):
+    """Muestra vista previa del grupo de archivos en configuración"""
+    group_data = context.user_data.get('media_group', {})
+    
+    title = group_data.get('title', '_No establecido_')
+    description = group_data.get('description', '_No establecida_')
+    price = group_data.get('price', 0)
+    files = group_data.get('files', [])
+    
+    price_text = "**Gratuito**" if price == 0 else f"**{price} estrellas**"
+    
+    file_count = len(files)
+    photo_count = sum(1 for f in files if f['type'] == 'photo')
+    video_count = sum(1 for f in files if f['type'] == 'video')
+    doc_count = sum(1 for f in files if f['type'] == 'document')
+    
+    keyboard = [
+        [InlineKeyboardButton("✏️ Título del Grupo", callback_data="setup_group_title")],
+        [InlineKeyboardButton("📝 Descripción del Grupo", callback_data="setup_group_description")],
+        [InlineKeyboardButton("💰 Precio del Grupo", callback_data="setup_group_price")],
+        [InlineKeyboardButton("✅ Publicar Grupo", callback_data="publish_group")],
+        [InlineKeyboardButton("❌ Cancelar", callback_data="cancel_upload")]
+    ]
+    
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    
+    preview_text = (
+        f"📦 **Grupo de archivos recibido**\n\n"
+        f"📊 **Archivos:** {file_count} total\n"
+        f"🎥 **Fotos:** {photo_count}\n"
+        f"🎬 **Videos:** {video_count}\n"
+        f"📄 **Documentos:** {doc_count}\n\n"
+        f"🔧 **Configuración actual:**\n"
+        f"✏️ Título: {title}\n"
+        f"📝 Descripción: {description}\n"
+        f"💰 Precio: {price_text}\n\n"
+        f"Se publicará como un álbum con configuración única:"
+    )
+    
+    await query.edit_message_text(
+        preview_text,
+        parse_mode='Markdown',
+        reply_markup=reply_markup
+    )
+
+async def publish_media_group(query, context: ContextTypes.DEFAULT_TYPE, group_data: dict):
+    """Publica el grupo de archivos usando sendMediaGroup nativo de Telegram"""
+    files = group_data.get('files', [])
+    title = group_data['title']
+    description = group_data['description']
+    price = group_data['price']
+    
+    if not files:
+        await query.answer("❌ No hay archivos para publicar", show_alert=True)
+        return
+    
+    try:
+        # Actualizar mensaje indicando que se está procesando
+        await query.edit_message_text(
+            f"⏳ **Procesando grupo de {len(files)} archivos...**\n\n"
+            f"📺 **Título:** {title}\n"
+            f"📝 **Descripción:** {description}\n"
+            f"💰 **Precio:** {price} estrellas\n\n"
+            f"📡 **Preparando para envío...**",
+            parse_mode='Markdown'
+        )
+        
+        # Preparar media group para Telegram
+        media_items = []
+        
+        for i, file_data in enumerate(files):
+            if file_data['type'] == 'photo':
+                media_item = InputMediaPhoto(
+                    media=file_data['file_id'],
+                    caption=f"{title}\n\n{description}" if i == 0 else None,  # Solo primer archivo lleva caption
+                    parse_mode='Markdown'
+                )
+            elif file_data['type'] == 'video':
+                media_item = InputMediaVideo(
+                    media=file_data['file_id'],
+                    caption=f"{title}\n\n{description}" if i == 0 else None,
+                    parse_mode='Markdown'
+                )
+            elif file_data['type'] == 'document':
+                media_item = InputMediaDocument(
+                    media=file_data['file_id'],
+                    caption=f"{title}\n\n{description}" if i == 0 else None,
+                    parse_mode='Markdown'
+                )
+            else:
+                continue  # Saltar tipos no soportados
+            
+            media_items.append(media_item)
+        
+        if not media_items:
+            await query.answer("❌ No se encontraron archivos válidos", show_alert=True)
+            return
+        
+        # Guardar en base de datos como contenido de grupo
+        content_id = content_bot.add_media_group_content(title, description, files, price)
+        
+        if content_id:
+            # Actualizar mensaje de confirmación
+            await query.edit_message_text(
+                f"✅ **¡Grupo publicado!**\n\n"
+                f"📺 **Título:** {title}\n"
+                f"📝 **Descripción:** {description}\n"
+                f"💰 **Precio:** {price} estrellas\n"
+                f"📊 **Archivos:** {len(files)}\n\n"
+                f"📡 **Enviando a todos los usuarios...**",
+                parse_mode='Markdown'
+            )
+            
+            # Enviar a todos los usuarios usando broadcast especial para grupos
+            await broadcast_media_group(context, content_id, media_items, title, description, price)
+            
+            # Actualizar mensaje final
+            await query.edit_message_text(
+                f"✅ **¡Grupo publicado y enviado!**\n\n"
+                f"📺 **Título:** {title}\n"
+                f"📝 **Descripción:** {description}\n"
+                f"💰 **Precio:** {price} estrellas\n"
+                f"📊 **Archivos:** {len(files)}\n\n"
+                f"✉️ **Enviado a todos los usuarios como álbum**",
+                parse_mode='Markdown'
+            )
+            
+            # Limpiar datos
+            if 'media_group' in context.user_data:
+                del context.user_data['media_group']
+            if 'waiting_for' in context.user_data:
+                del context.user_data['waiting_for']
+        else:
+            await query.answer("❌ Error al guardar el grupo", show_alert=True)
+            
+    except Exception as e:
+        logger.error(f"Error al publicar grupo: {e}")
+        await query.answer("❌ Error al publicar el grupo", show_alert=True)
+
 async def handle_text_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Maneja entrada de texto para configuración de contenido"""
     if not update.effective_user or not update.message or not update.message.text:
@@ -1392,6 +1709,88 @@ async def handle_text_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 parse_mode='Markdown'
             )
             del context.user_data['waiting_for']
+        except ValueError:
+            await update.message.reply_text(
+                "❌ **Precio inválido**\n\n"
+                "Por favor, envía un número entero (0 para gratis).",
+                parse_mode='Markdown'
+            )
+    
+    # === NUEVOS HANDLERS PARA GRUPOS ===
+    elif waiting_for == 'group_title':
+        context.user_data['media_group']['title'] = update.message.text
+        await update.message.reply_text(
+            f"✅ **Título del grupo establecido:** {update.message.text}\n\n"
+            f"Ahora puedes continuar configurando tu grupo:",
+            parse_mode='Markdown'
+        )
+        del context.user_data['waiting_for']
+        
+        # Mostrar preview del grupo actualizado
+        keyboard = [
+            [InlineKeyboardButton("✏️ Cambiar Título", callback_data="setup_group_title")],
+            [InlineKeyboardButton("📝 Establecer Descripción", callback_data="setup_group_description")],
+            [InlineKeyboardButton("💰 Establecer Precio", callback_data="setup_group_price")],
+            [InlineKeyboardButton("✅ Publicar Grupo", callback_data="publish_group")],
+            [InlineKeyboardButton("❌ Cancelar", callback_data="cancel_upload")]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await update.message.reply_text(
+            "Continuar configuración del grupo:",
+            reply_markup=reply_markup
+        )
+    
+    elif waiting_for == 'group_description':
+        context.user_data['media_group']['description'] = update.message.text
+        await update.message.reply_text(
+            f"✅ **Descripción del grupo establecida:** {update.message.text}\n\n"
+            f"Ahora puedes continuar configurando tu grupo:",
+            parse_mode='Markdown'
+        )
+        del context.user_data['waiting_for']
+        
+        # Mostrar preview del grupo actualizado
+        keyboard = [
+            [InlineKeyboardButton("✏️ Establecer Título", callback_data="setup_group_title")],
+            [InlineKeyboardButton("📝 Cambiar Descripción", callback_data="setup_group_description")],
+            [InlineKeyboardButton("💰 Establecer Precio", callback_data="setup_group_price")],
+            [InlineKeyboardButton("✅ Publicar Grupo", callback_data="publish_group")],
+            [InlineKeyboardButton("❌ Cancelar", callback_data="cancel_upload")]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await update.message.reply_text(
+            "Continuar configuración del grupo:",
+            reply_markup=reply_markup
+        )
+    
+    elif waiting_for == 'group_custom_price':
+        try:
+            price = int(update.message.text)
+            if price < 0:
+                await update.message.reply_text("❌ El precio no puede ser negativo. Inténtalo de nuevo:")
+                return
+            
+            context.user_data['media_group']['price'] = price
+            await update.message.reply_text(
+                f"✅ **Precio del grupo establecido:** {price} estrellas\n\n"
+                f"Ahora puedes continuar configurando tu grupo:",
+                parse_mode='Markdown'
+            )
+            del context.user_data['waiting_for']
+            
+            # Mostrar preview del grupo actualizado
+            keyboard = [
+                [InlineKeyboardButton("✏️ Establecer Título", callback_data="setup_group_title")],
+                [InlineKeyboardButton("📝 Establecer Descripción", callback_data="setup_group_description")],
+                [InlineKeyboardButton("💰 Cambiar Precio", callback_data="setup_group_price")],
+                [InlineKeyboardButton("✅ Publicar Grupo", callback_data="publish_group")],
+                [InlineKeyboardButton("❌ Cancelar", callback_data="cancel_upload")]
+            ]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            await update.message.reply_text(
+                "Continuar configuración del grupo:",
+                reply_markup=reply_markup
+            )
         except ValueError:
             await update.message.reply_text(
                 "❌ **Precio inválido**\n\n"
@@ -1522,7 +1921,7 @@ async def add_content_command(update: Update, context: ContextTypes.DEFAULT_TYPE
         await update.message.reply_text(f"❌ Error: {str(e)}")
 
 async def handle_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Maneja archivos de media enviados (permite múltiples archivos)"""
+    """Maneja archivos de media con detección automática (como canales de Telegram)"""
     if not update.effective_user or not update.message:
         return
         
@@ -1532,59 +1931,146 @@ async def handle_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("❌ Solo el administrador puede subir contenido.")
         return
     
+    message = update.message
+    media_group_id = message.media_group_id
+    
     # Determinar tipo de media y file_id
-    if update.message.photo:
+    if message.photo:
         media_type = "photo"
-        file_id = update.message.photo[-1].file_id
+        file_id = message.photo[-1].file_id
         filename = "Foto"
-    elif update.message.video:
+    elif message.video:
         media_type = "video"
-        file_id = update.message.video.file_id
-        filename = update.message.video.file_name or "Video"
-    elif update.message.document:
+        file_id = message.video.file_id
+        filename = message.video.file_name or "Video"
+    elif message.document:
         media_type = "document"
-        file_id = update.message.document.file_id
-        filename = update.message.document.file_name or "Documento"
+        file_id = message.document.file_id
+        filename = message.document.file_name or "Documento"
     else:
         await update.message.reply_text("❌ Tipo de archivo no soportado.")
         return
     
-    # Inicializar cola de archivos si no existe
-    if 'media_queue' not in context.user_data:
-        context.user_data['media_queue'] = []
-    
-    # Agregar archivo a la cola
     media_item = {
         'type': media_type,
         'file_id': file_id,
         'filename': filename,
-        'title': '',
-        'description': '',
-        'price': 0
+        'message': message
     }
     
-    context.user_data['media_queue'].append(media_item)
-    queue_length = len(context.user_data['media_queue'])
+    if not media_group_id:
+        # ARCHIVO INDIVIDUAL - Configurar directamente
+        await handle_single_file(update, context, media_item)
+    else:
+        # MÚLTIPLES ARCHIVOS - Agrupar automáticamente
+        await handle_media_group(update, context, media_item, media_group_id)
+
+async def handle_single_file(update: Update, context: ContextTypes.DEFAULT_TYPE, media_item: dict):
+    """Maneja un archivo individual con configuración simple"""
+    # Limpiar datos previos
+    if 'pending_media' in context.user_data:
+        del context.user_data['pending_media']
+    if 'media_queue' in context.user_data:
+        del context.user_data['media_queue']
     
-    # Mostrar botones para gestionar la cola
+    # Configurar archivo individual
+    context.user_data['pending_media'] = {
+        'type': media_item['type'],
+        'file_id': media_item['file_id'],
+        'filename': media_item['filename'],
+        'title': '',
+        'description': '',
+        'price': 0,
+        'is_single': True
+    }
+    
     keyboard = [
-        [InlineKeyboardButton(f"📋 Ver Cola ({queue_length})", callback_data="view_queue")],
-        [InlineKeyboardButton("⚙️ Configurar Todo", callback_data="batch_setup")],
-        [InlineKeyboardButton("✅ Publicar Todo", callback_data="publish_all")],
-        [InlineKeyboardButton("🗑️ Limpiar Cola", callback_data="clear_queue")]
+        [InlineKeyboardButton("✏️ Establecer Título", callback_data="setup_title")],
+        [InlineKeyboardButton("📝 Establecer Descripción", callback_data="setup_description")],
+        [InlineKeyboardButton("💰 Establecer Precio", callback_data="setup_price")],
+        [InlineKeyboardButton("✅ Publicar Archivo", callback_data="publish_content")],
+        [InlineKeyboardButton("❌ Cancelar", callback_data="cancel_upload")]
     ]
-    
     reply_markup = InlineKeyboardMarkup(keyboard)
     
     await update.message.reply_text(
-        f"📁 **Archivo #{queue_length} agregado**\n\n"
-        f"📂 **Tipo:** {media_type}\n"
-        f"📝 **Nombre:** {filename}\n\n"
-        f"📊 **Cola actual:** {queue_length} archivo(s)\n"
-        f"🎥 **Fotos:** {sum(1 for item in context.user_data['media_queue'] if item['type'] == 'photo')}\n"
-        f"🎬 **Videos:** {sum(1 for item in context.user_data['media_queue'] if item['type'] == 'video')}\n"
-        f"📄 **Documentos:** {sum(1 for item in context.user_data['media_queue'] if item['type'] == 'document')}\n\n"
-        f"💡 **Puedes seguir enviando más archivos o configurar los existentes:**",
+        f"📁 **Archivo individual detectado**\n\n"
+        f"📂 **Tipo:** {media_item['type']}\n"
+        f"📝 **Nombre:** {media_item['filename']}\n\n"
+        f"⚙️ **Configura tu archivo:**",
+        parse_mode='Markdown',
+        reply_markup=reply_markup
+    )
+
+async def handle_media_group(update: Update, context: ContextTypes.DEFAULT_TYPE, media_item: dict, media_group_id: str):
+    """Maneja múltiples archivos usando detección automática"""
+    global media_groups, pending_groups
+    
+    # Agregar a la colección de grupos
+    media_groups[media_group_id].append(media_item)
+    
+    # Cancelar timer previo si existe
+    if media_group_id in pending_groups:
+        pending_groups[media_group_id].cancel()
+    
+    # Crear nuevo timer para procesar el grupo
+    pending_groups[media_group_id] = asyncio.create_task(
+        process_media_group_delayed(update, context, media_group_id)
+    )
+
+async def process_media_group_delayed(update: Update, context: ContextTypes.DEFAULT_TYPE, media_group_id: str):
+    """Procesa el grupo de archivos después de un delay"""
+    await asyncio.sleep(0.5)  # Esperar 500ms por más archivos
+    
+    global media_groups, pending_groups
+    
+    if media_group_id in media_groups:
+        files = media_groups.pop(media_group_id)
+        pending_groups.pop(media_group_id, None)
+        
+        await process_media_group_final(update, context, files)
+
+async def process_media_group_final(update: Update, context: ContextTypes.DEFAULT_TYPE, files: list):
+    """Procesa el grupo final de archivos"""
+    if not files:
+        return
+    
+    # Limpiar datos previos
+    if 'pending_media' in context.user_data:
+        del context.user_data['pending_media']
+    if 'media_queue' in context.user_data:
+        del context.user_data['media_queue']
+    
+    # Configurar grupo de archivos
+    context.user_data['media_group'] = {
+        'files': files,
+        'title': '',
+        'description': '',
+        'price': 0,
+        'is_group': True
+    }
+    
+    file_count = len(files)
+    photo_count = sum(1 for f in files if f['type'] == 'photo')
+    video_count = sum(1 for f in files if f['type'] == 'video')
+    doc_count = sum(1 for f in files if f['type'] == 'document')
+    
+    keyboard = [
+        [InlineKeyboardButton("✏️ Título del Grupo", callback_data="setup_group_title")],
+        [InlineKeyboardButton("📝 Descripción del Grupo", callback_data="setup_group_description")],
+        [InlineKeyboardButton("💰 Precio del Grupo", callback_data="setup_group_price")],
+        [InlineKeyboardButton("✅ Publicar Grupo", callback_data="publish_group")],
+        [InlineKeyboardButton("❌ Cancelar", callback_data="cancel_upload")]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    
+    await update.effective_chat.send_message(
+        f"📦 **Grupo de archivos detectado automáticamente**\n\n"
+        f"📊 **Total:** {file_count} archivo(s)\n"
+        f"🎥 **Fotos:** {photo_count}\n"
+        f"🎬 **Videos:** {video_count}\n"
+        f"📄 **Documentos:** {doc_count}\n\n"
+        f"💡 **Se publicarán juntos como un álbum con precio y descripción únicos:**",
         parse_mode='Markdown',
         reply_markup=reply_markup
     )
