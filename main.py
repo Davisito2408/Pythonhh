@@ -15,7 +15,8 @@ from collections import defaultdict
 from telegram import (
     Update, InlineKeyboardButton, InlineKeyboardMarkup, 
     LabeledPrice, PreCheckoutQuery, Message, InputPaidMediaPhoto, 
-    InputPaidMediaVideo, InputMediaPhoto, InputMediaVideo, InputMediaDocument
+    InputPaidMediaVideo, InputMediaPhoto, InputMediaVideo, InputMediaDocument,
+    BotCommand
 )
 from telegram.ext import (
     Application, CommandHandler, CallbackQueryHandler, 
@@ -2256,8 +2257,24 @@ def main():
     # Crear aplicación
     application = Application.builder().token(BOT_TOKEN).build()
     
+    # Configurar menú de comandos desplegable
+    async def setup_commands():
+        """Configura el menú desplegable de comandos"""
+        commands = [
+            BotCommand("start", "🏠 Ver contenido del canal"),
+            BotCommand("catalogo", "📋 Ver catálogo disponible"),
+            BotCommand("ayuda", "❓ Obtener ayuda"),
+            # Comandos de admin (visibles solo para admin pero útiles en el menú)
+            BotCommand("admin", "🔧 Panel de administración"),
+            BotCommand("menu", "📱 Menú de comandos completo")
+        ]
+        await application.bot.set_my_commands(commands)
+        logger.info("Menú de comandos configurado")
+    
     # Añadir manejadores principales (experiencia de canal)
     application.add_handler(CommandHandler("start", start))
+    application.add_handler(CommandHandler("catalogo", catalog_command))
+    application.add_handler(CommandHandler("ayuda", help_command))
     
     # Comandos de administración (ocultos para usuarios normales)
     application.add_handler(CommandHandler("admin", admin_command))
@@ -2309,19 +2326,40 @@ def main():
             logger.info(f"Servidor web iniciado en puerto {port}")
             server.serve_forever()
         
-        def run_bot():
+        async def run_bot():
             logger.info("Iniciando bot...")
-            application.run_polling(allowed_updates=Update.ALL_TYPES)
+            # Configurar comandos al iniciar
+            await setup_commands()
+            await application.initialize()
+            await application.start()
+            await application.updater.start_polling(allowed_updates=Update.ALL_TYPES)
+            
+            # Mantener el bot funcionando
+            try:
+                await application.updater.idle()
+            finally:
+                await application.stop()
+                await application.shutdown()
+        
+        def run_bot_sync():
+            import asyncio
+            asyncio.run(run_bot())
         
         # Iniciar servidor web en hilo separado
         web_thread = threading.Thread(target=run_web_server, daemon=True)
         web_thread.start()
         
         # Ejecutar bot en hilo principal
-        run_bot()
+        run_bot_sync()
     else:
         # Localmente: Solo bot
         logger.info("Iniciando bot...")
+        
+        # Configurar comandos usando un handler especial
+        async def post_init(application):
+            await setup_commands()
+            
+        application.post_init = post_init
         application.run_polling(allowed_updates=Update.ALL_TYPES)
 
 if __name__ == '__main__':
