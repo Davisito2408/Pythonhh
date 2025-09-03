@@ -20,6 +20,14 @@ from telegram.ext import (
     MessageHandler, filters, ContextTypes, PreCheckoutQueryHandler
 )
 
+# Cargar variables de entorno desde archivo .env si existe
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    # python-dotenv no instalado, continuar sin él
+    pass
+
 # Configurar logging
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -1417,7 +1425,9 @@ def main():
     
     # Verificar si estamos en Render (necesita servidor web)
     port = os.getenv('PORT')
-    if port:
+    pythonanywhere = os.getenv('PYTHONANYWHERE_DOMAIN')  # Detectar PythonAnywhere
+    
+    if port and not pythonanywhere:
         # En Render: Ejecutar bot con servidor web
         import threading
         from http.server import HTTPServer, SimpleHTTPRequestHandler
