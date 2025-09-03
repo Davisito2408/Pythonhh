@@ -287,6 +287,28 @@ class ContentBot:
             'top_content': top_content
         }
 
+async def update_all_user_chats(context: ContextTypes.DEFAULT_TYPE):
+    """Actualiza silenciosamente los chats de todos los usuarios enviando contenido actualizado"""
+    users = content_bot.get_all_users()
+    
+    for user_id in users:
+        try:
+            # Simular estructura para send_all_posts
+            class FakeUpdate:
+                def __init__(self, user_id):
+                    self.effective_chat = type('obj', (object,), {'id': user_id})
+                    self.effective_user = type('obj', (object,), {'id': user_id})
+                    self.message = None  # No hay mensaje original
+            
+            fake_update = FakeUpdate(user_id)
+            await send_all_posts(fake_update, context)
+            
+            # Pausa para evitar spam
+            import asyncio
+            await asyncio.sleep(0.2)
+        except Exception as e:
+            logger.error(f"Error actualizando chat de usuario {user_id}: {e}")
+
 async def broadcast_new_content(context: ContextTypes.DEFAULT_TYPE, content_id: int):
     """Envía nuevo contenido a todos los usuarios registrados"""
     users = content_bot.get_all_users()
@@ -321,7 +343,7 @@ async def send_all_posts(update: Update, context: ContextTypes.DEFAULT_TYPE):
     content_list = content_bot.get_content_list()
     
     if not content_list:
-        # Si no hay contenido, enviar mensaje discreto
+        # Si no hay contenido, enviar mensaje discreto solo si hay mensaje original
         if update.message:
             await update.message.reply_text("💭 Este canal aún no tiene contenido publicado.")
         return
@@ -614,6 +636,62 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 reply_markup=reply_markup,
                 parse_mode='Markdown'
             )
+        
+        elif data == "admin_stats":
+            stats = content_bot.get_stats()
+            
+            # Formatear top content
+            top_content_text = ""
+            if stats['top_content']:
+                for i, (title, sales) in enumerate(stats['top_content'][:3], 1):
+                    top_content_text += f"{i}. {title}: {sales} ventas\n"
+            else:
+                top_content_text = "Sin ventas aún"
+            
+            keyboard = [[InlineKeyboardButton("⬅️ Volver", callback_data="admin_back")]]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            
+            await query.edit_message_text(
+                f"📊 **Estadísticas del Bot**\n\n"
+                f"👥 **Usuarios registrados:** {stats['total_users']}\n"
+                f"📁 **Contenido publicado:** {stats['total_content']}\n"
+                f"💰 **Ventas realizadas:** {stats['total_sales']}\n"
+                f"⭐ **Estrellas ganadas:** {stats['total_stars']}\n\n"
+                f"🏆 **Top contenido:**\n{top_content_text}",
+                parse_mode='Markdown',
+                reply_markup=reply_markup
+            )
+        
+        elif data == "admin_settings":
+            keyboard = [
+                [InlineKeyboardButton("🗑️ Limpiar chats de usuarios", callback_data="clean_user_chats")],
+                [InlineKeyboardButton("📊 Exportar estadísticas", callback_data="export_stats")],
+                [InlineKeyboardButton("⬅️ Volver", callback_data="admin_back")]
+            ]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            
+            await query.edit_message_text(
+                f"⚙️ **Configuración del Bot**\n\n"
+                f"Opciones de gestión avanzada:",
+                parse_mode='Markdown',
+                reply_markup=reply_markup
+            )
+        
+        elif data == "admin_back":
+            keyboard = [
+                [InlineKeyboardButton("➕ Añadir Contenido", callback_data="admin_add_content")],
+                [InlineKeyboardButton("📋 Gestionar Contenido", callback_data="admin_manage_content")],
+                [InlineKeyboardButton("📊 Estadísticas", callback_data="admin_stats")],
+                [InlineKeyboardButton("⚙️ Configuración", callback_data="admin_settings")]
+            ]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            
+            await query.edit_message_text(
+                "🔧 **Panel de Administración**\n\n"
+                "Selecciona una opción:",
+                reply_markup=reply_markup,
+                parse_mode='Markdown'
+            )
     
     # Nuevos callbacks para configuración de contenido
     elif data == "setup_title":
@@ -795,9 +873,12 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         # Ejecutar eliminación
         if content_bot.delete_content(content_id):
+            # Enviar nueva versión del canal a todos los usuarios (sin notificación)
+            await update_all_user_chats(context)
+            
             await query.edit_message_text(
                 f"✅ **Contenido eliminado exitosamente**\n\n"
-                f"El contenido ha sido eliminado permanentemente de la base de datos.",
+                f"El contenido ha sido eliminado y los chats de usuarios han sido actualizados silenciosamente.",
                 parse_mode='Markdown'
             )
         else:
@@ -807,73 +888,6 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 parse_mode='Markdown'
             )
     
-    elif data == "admin_stats":
-        if not content_bot.is_admin(user_id):
-            await query.edit_message_text("❌ Sin permisos de administrador.")
-            return
-        
-        stats = content_bot.get_stats()
-        
-        # Formatear top content
-        top_content_text = ""
-        if stats['top_content']:
-            for i, (title, sales) in enumerate(stats['top_content'][:3], 1):
-                top_content_text += f"{i}. {title}: {sales} ventas\n"
-        else:
-            top_content_text = "Sin ventas aún"
-        
-        keyboard = [[InlineKeyboardButton("⬅️ Volver", callback_data="admin_back")]]
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        
-        await query.edit_message_text(
-            f"📊 **Estadísticas del Bot**\n\n"
-            f"👥 **Usuarios registrados:** {stats['total_users']}\n"
-            f"📁 **Contenido publicado:** {stats['total_content']}\n"
-            f"💰 **Ventas realizadas:** {stats['total_sales']}\n"
-            f"⭐ **Estrellas ganadas:** {stats['total_stars']}\n\n"
-            f"🏆 **Top contenido:**\n{top_content_text}",
-            parse_mode='Markdown',
-            reply_markup=reply_markup
-        )
-    
-    elif data == "admin_settings":
-        if not content_bot.is_admin(user_id):
-            await query.edit_message_text("❌ Sin permisos de administrador.")
-            return
-        
-        keyboard = [
-            [InlineKeyboardButton("🗑️ Limpiar chats de usuarios", callback_data="clean_user_chats")],
-            [InlineKeyboardButton("📊 Exportar estadísticas", callback_data="export_stats")],
-            [InlineKeyboardButton("⬅️ Volver", callback_data="admin_back")]
-        ]
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        
-        await query.edit_message_text(
-            f"⚙️ **Configuración del Bot**\n\n"
-            f"Opciones de gestión avanzada:",
-            parse_mode='Markdown',
-            reply_markup=reply_markup
-        )
-    
-    elif data == "admin_back":
-        if not content_bot.is_admin(user_id):
-            await query.edit_message_text("❌ Sin permisos de administrador.")
-            return
-        
-        keyboard = [
-            [InlineKeyboardButton("➕ Añadir Contenido", callback_data="admin_add_content")],
-            [InlineKeyboardButton("📋 Gestionar Contenido", callback_data="admin_manage_content")],
-            [InlineKeyboardButton("📊 Estadísticas", callback_data="admin_stats")],
-            [InlineKeyboardButton("⚙️ Configuración", callback_data="admin_settings")]
-        ]
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        
-        await query.edit_message_text(
-            "🔧 **Panel de Administración**\n\n"
-            "Selecciona una opción:",
-            reply_markup=reply_markup,
-            parse_mode='Markdown'
-        )
     
     elif data == "clean_user_chats":
         if not content_bot.is_admin(user_id):
