@@ -441,20 +441,31 @@ async def broadcast_media_group(context: ContextTypes.DEFAULT_TYPE, content_id: 
         try:
             logger.info(f"Enviando grupo a usuario {user_id}, precio: {price}")
             if price > 0:
-                # Para contenido pagado, crear mensaje con precio
-                logger.info(f"Creando preview de pago para usuario {user_id}")
-                keyboard = [[InlineKeyboardButton(f"🔓 Desbloquear ({price} ⭐)", callback_data=f"unlock_{content_id}")]]
-                reply_markup = InlineKeyboardMarkup(keyboard)
+                # Para contenido pagado, usar send_paid_media nativo
+                logger.info(f"Enviando paid media group a usuario {user_id}")
                 
-                # Enviar mensaje de preview para contenido pagado
-                preview_caption = f"**{title}**\n\n{description}\n\n💰 **Precio:** {price} estrellas ⭐"
-                await context.bot.send_message(
-                    chat_id=user_id,
-                    text=preview_caption,
-                    parse_mode='Markdown',
-                    reply_markup=reply_markup
-                )
-                logger.info(f"Preview enviado a usuario {user_id}")
+                # Convertir media_items (InputMedia*) a InputPaidMedia*
+                paid_media_items = []
+                for media_item in media_items:
+                    if hasattr(media_item, 'media'):  # Es InputMediaPhoto, InputMediaVideo, etc.
+                        if media_item.__class__.__name__ == 'InputMediaPhoto':
+                            paid_media_items.append(InputPaidMediaPhoto(media=media_item.media))
+                        elif media_item.__class__.__name__ == 'InputMediaVideo':
+                            paid_media_items.append(InputPaidMediaVideo(media=media_item.media))
+                
+                if paid_media_items:
+                    # Usar send_paid_media nativo de Telegram
+                    caption = f"**{title}**\n\n{description}"
+                    await context.bot.send_paid_media(
+                        chat_id=user_id,
+                        star_count=price,
+                        media=paid_media_items,
+                        caption=caption,
+                        parse_mode='Markdown'
+                    )
+                    logger.info(f"Paid media group enviado a usuario {user_id}")
+                else:
+                    logger.error(f"No se pudieron convertir media items a paid media para usuario {user_id}")
             else:
                 # Para contenido gratuito, enviar el grupo completo directamente
                 logger.info(f"Enviando media group gratuito a usuario {user_id}")
@@ -521,6 +532,46 @@ async def send_channel_post(update: Update, context: ContextTypes.DEFAULT_TYPE, 
                 caption=caption,
                 parse_mode='Markdown'
             )
+        elif content['media_type'] == 'media_group':
+            # Para grupos de medios gratuitos, usar send_media_group
+            import json
+            try:
+                # Deserializar los archivos del grupo
+                group_info = json.loads(content['description'])
+                files = group_info.get('files', [])
+                group_description = group_info.get('description', '')
+                group_caption = f"**{content['title']}**\n\n{group_description}"
+                
+                # Convertir a InputMedia*
+                media_items = []
+                for i, file_data in enumerate(files):
+                    caption_text = group_caption if i == 0 else None  # Solo primer archivo lleva caption
+                    if file_data['type'] == 'photo':
+                        media_items.append(InputMediaPhoto(
+                            media=file_data['file_id'],
+                            caption=caption_text,
+                            parse_mode='Markdown' if caption_text else None
+                        ))
+                    elif file_data['type'] == 'video':
+                        media_items.append(InputMediaVideo(
+                            media=file_data['file_id'],
+                            caption=caption_text,
+                            parse_mode='Markdown' if caption_text else None
+                        ))
+                
+                if media_items:
+                    await context.bot.send_media_group(
+                        chat_id=chat_id,
+                        media=media_items
+                    )
+            except Exception as e:
+                logger.error(f"Error enviando grupo de medios gratuito: {e}")
+                # Fallback a mensaje de texto
+                await context.bot.send_message(
+                    chat_id=chat_id,
+                    text=caption,
+                    parse_mode='Markdown'
+                )
         else:
             await context.bot.send_message(
                 chat_id=chat_id,
@@ -549,6 +600,40 @@ async def send_channel_post(update: Update, context: ContextTypes.DEFAULT_TYPE, 
                 caption=caption,
                 parse_mode='Markdown'
             )
+        elif content['media_type'] == 'media_group':
+            # Para grupos de medios, usar send_paid_media con múltiples archivos
+            import json
+            try:
+                # Deserializar los archivos del grupo
+                group_info = json.loads(content['description'])
+                files = group_info.get('files', [])
+                group_description = group_info.get('description', '')
+                group_caption = f"**{content['title']}**\n\n{group_description}"
+                
+                # Convertir a InputPaidMedia*
+                paid_media_items = []
+                for file_data in files:
+                    if file_data['type'] == 'photo':
+                        paid_media_items.append(InputPaidMediaPhoto(media=file_data['file_id']))
+                    elif file_data['type'] == 'video':
+                        paid_media_items.append(InputPaidMediaVideo(media=file_data['file_id']))
+                
+                if paid_media_items:
+                    await context.bot.send_paid_media(
+                        chat_id=chat_id,
+                        star_count=content['price_stars'],
+                        media=paid_media_items,
+                        caption=group_caption,
+                        parse_mode='Markdown'
+                    )
+            except Exception as e:
+                logger.error(f"Error enviando grupo de medios pagado: {e}")
+                # Fallback a mensaje de texto
+                await context.bot.send_message(
+                    chat_id=chat_id,
+                    text=f"🔒 **{content['title']}**\n\nContenido de grupo premium\n\n💰 {content['price_stars']} estrellas",
+                    parse_mode='Markdown'
+                )
         elif content['media_type'] == 'document':
             # Para documentos, usar mensaje de texto con botón de pago manual
             stars_text = f"⭐ {content['price_stars']} estrellas"
