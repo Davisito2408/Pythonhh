@@ -73,5 +73,16 @@ Bot de Telegram que simula la experiencia de un canal tradicional operando compl
 - **Post-compra**: El contenido se reenvía automáticamente desbloqueado
 
 ## Comandos Ocultos (Solo Admin)
-- /admin - Panel de administración
+- /admin - Panel de administración completo
+- /menu - **NUEVO** Menú de comandos con acceso rápido a todas las funciones
 - /add_content - Subir contenido nuevo
+
+### Funcionalidades del Comando /menu
+- 🔧 Acceso directo al panel de administración
+- ➕ Botón de subida rápida de contenido
+- 📋 Gestión directa de contenido existente
+- 📊 Acceso inmediato a estadísticas
+- ⚙️ Configuración del sistema
+- 🗑️ Limpieza de chats de usuarios
+- 📄 Exportación de estadísticas
+- 🔄 Actualización masiva de todos los chats

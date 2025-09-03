@@ -555,6 +555,47 @@ async def admin_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         parse_mode='Markdown'
     )
 
+async def menu_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Comando /menu - Menú completo de comandos para administrador"""
+    if not update.effective_user or not update.message:
+        return
+        
+    user_id = update.effective_user.id
+    
+    if not content_bot.is_admin(user_id):
+        await update.message.reply_text("❌ Este comando es solo para administradores.")
+        return
+    
+    keyboard = [
+        [InlineKeyboardButton("🔧 Panel Admin", callback_data="quick_admin")],
+        [InlineKeyboardButton("➕ Subir Contenido", callback_data="quick_upload"), 
+         InlineKeyboardButton("📋 Gestionar", callback_data="admin_manage_content")],
+        [InlineKeyboardButton("📊 Estadísticas", callback_data="admin_stats"), 
+         InlineKeyboardButton("⚙️ Configuración", callback_data="admin_settings")],
+        [InlineKeyboardButton("🗑️ Limpiar Chats", callback_data="clean_user_chats"), 
+         InlineKeyboardButton("📄 Exportar Stats", callback_data="export_stats")],
+        [InlineKeyboardButton("🔄 Actualizar Todo", callback_data="refresh_all_users")]
+    ]
+    
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    
+    menu_text = (
+        "📋 **MENÚ DE ADMINISTRADOR**\n\n"
+        "**Comandos Disponibles:**\n"
+        "• `/admin` - Panel principal\n"
+        "• `/menu` - Este menú\n"
+        "• `/start` - Ver como usuario\n"
+        "• `/ayuda` - Ayuda del bot\n"
+        "• `/catalogo` - Ver catálogo\n\n"
+        "**Acceso Rápido:**"
+    )
+    
+    await update.message.reply_text(
+        menu_text,
+        reply_markup=reply_markup,
+        parse_mode='Markdown'
+    )
+
 async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Manejador de callbacks de botones inline"""
     query = update.callback_query
@@ -941,6 +982,66 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             stats_text += f"{i}. {title}: {sales} ventas\n"
         
         await query.edit_message_text(stats_text, parse_mode='Markdown')
+    
+    # Handlers para nuevos callbacks del menú de administrador
+    elif data == "quick_admin":
+        if not content_bot.is_admin(user_id):
+            await query.edit_message_text("❌ Sin permisos de administrador.")
+            return
+        
+        keyboard = [
+            [InlineKeyboardButton("➕ Añadir Contenido", callback_data="admin_add_content")],
+            [InlineKeyboardButton("📋 Gestionar Contenido", callback_data="admin_manage_content")],
+            [InlineKeyboardButton("📊 Estadísticas", callback_data="admin_stats")],
+            [InlineKeyboardButton("⚙️ Configuración", callback_data="admin_settings")]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        await query.edit_message_text(
+            "🔧 **Panel de Administración**\n\n"
+            "Selecciona una opción:",
+            reply_markup=reply_markup,
+            parse_mode='Markdown'
+        )
+    
+    elif data == "quick_upload":
+        if not content_bot.is_admin(user_id):
+            await query.edit_message_text("❌ Sin permisos de administrador.")
+            return
+        
+        await query.edit_message_text(
+            "➕ **Subir Contenido Rápido**\n\n"
+            "**Método Simplificado:**\n"
+            "1. Envía tu archivo (foto, video o documento)\n"
+            "2. Aparecerán botones automáticamente\n"
+            "3. Configura título, descripción y precio\n"
+            "4. ¡Listo para publicar!\n\n"
+            "**Método Tradicional:**\n"
+            "Usa: `/add_content Título|Descripción|Precio`",
+            parse_mode='Markdown'
+        )
+    
+    elif data == "refresh_all_users":
+        if not content_bot.is_admin(user_id):
+            await query.edit_message_text("❌ Sin permisos de administrador.")
+            return
+        
+        # Ejecutar actualización de todos los chats de usuarios
+        await query.edit_message_text("🔄 **Actualizando todos los chats...**\n\nEsto puede tardar unos segundos.")
+        
+        try:
+            await update_all_user_chats(context)
+            await query.edit_message_text(
+                "✅ **Actualización Completada**\n\n"
+                "Todos los chats de usuarios han sido actualizados con el contenido más reciente.",
+                parse_mode='Markdown'
+            )
+        except Exception as e:
+            await query.edit_message_text(
+                f"❌ **Error en la Actualización**\n\n"
+                f"Hubo un problema al actualizar los chats. Intenta de nuevo más tarde.",
+                parse_mode='Markdown'
+            )
 
 async def show_content_preview(query, context: ContextTypes.DEFAULT_TYPE):
     """Muestra vista previa del contenido en configuración"""
@@ -1303,6 +1404,7 @@ def main():
     
     # Comandos de administración (ocultos para usuarios normales)
     application.add_handler(CommandHandler("admin", admin_command))
+    application.add_handler(CommandHandler("menu", menu_command))
     application.add_handler(CommandHandler("add_content", add_content_command))
     application.add_handler(MessageHandler(filters.PHOTO | filters.VIDEO | filters.Document.ALL, handle_media))
     
