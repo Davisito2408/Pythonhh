@@ -12,7 +12,8 @@ from datetime import datetime
 
 from telegram import (
     Update, InlineKeyboardButton, InlineKeyboardMarkup, 
-    LabeledPrice, PreCheckoutQuery, Message
+    LabeledPrice, PreCheckoutQuery, Message, InputPaidMediaPhoto, 
+    InputPaidMediaVideo
 )
 from telegram.ext import (
     Application, CommandHandler, CallbackQueryHandler, 
@@ -307,38 +308,30 @@ async def send_channel_post(update: Update, context: ContextTypes.DEFAULT_TYPE, 
                 parse_mode='Markdown'
             )
     else:
-        # Contenido de pago - usar spoiler nativo con estrellas encima
-        stars_text = f"⭐ {content['price_stars']} estrellas"
-        caption_with_stars = f"{stars_text}\n\n{caption}"
-        
-        # Añadir botón invisible para activar pago
-        keyboard = [[InlineKeyboardButton(
-            f"💰 Desbloquear por {content['price_stars']} ⭐", 
-            callback_data=f"unlock_{content['id']}"
-        )]]
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        
+        # Contenido de pago - usar funcionalidad nativa de Telegram
         if content['media_type'] == 'photo':
-            # En lugar de mostrar la imagen real, mostrar placeholder bloqueado
-            blocked_text = f"{stars_text}\n\n🔒 **{content['title']}**\n\n_Imagen premium bloqueada_\n\n{content['description']}"
-            await context.bot.send_message(
+            # Usar send_paid_media nativo para fotos
+            paid_media = [InputPaidMediaPhoto(media=content['media_file_id'])]
+            await context.bot.send_paid_media(
                 chat_id=chat_id,
-                text=blocked_text,
-                parse_mode='Markdown',
-                reply_markup=reply_markup
+                star_count=content['price_stars'],
+                media=paid_media,
+                caption=caption,
+                parse_mode='Markdown'
             )
         elif content['media_type'] == 'video':
-            # En lugar de mostrar el video real, mostrar placeholder bloqueado
-            blocked_text = f"{stars_text}\n\n🔒 **{content['title']}**\n\n_Video premium bloqueado_\n\n{content['description']}"
-            await context.bot.send_message(
+            # Usar send_paid_media nativo para videos
+            paid_media = [InputPaidMediaVideo(media=content['media_file_id'])]
+            await context.bot.send_paid_media(
                 chat_id=chat_id,
-                text=blocked_text,
-                parse_mode='Markdown',
-                reply_markup=reply_markup
+                star_count=content['price_stars'],
+                media=paid_media,
+                caption=caption,
+                parse_mode='Markdown'
             )
         elif content['media_type'] == 'document':
-            # En lugar de mostrar el documento real, mostrar placeholder bloqueado
-            blocked_text = f"{stars_text}\n\n🔒 **{content['title']}**\n\n_Documento premium bloqueado_\n\n{content['description']}"
+            # Para documentos, usar mensaje de texto con botón de pago manual
+            blocked_text = f"{stars_text}\n\n🔒 **{content['title']}**\n\n_Documento premium_\n\n{content['description']}"
             await context.bot.send_message(
                 chat_id=chat_id,
                 text=blocked_text,
