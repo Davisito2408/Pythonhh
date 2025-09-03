@@ -853,6 +853,202 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if 'waiting_for' in context.user_data:
             del context.user_data['waiting_for']
     
+    # === NUEVOS CALLBACKS PARA MÚLTIPLES ARCHIVOS ===
+    elif data == "view_queue":
+        media_queue = context.user_data.get('media_queue', [])
+        
+        if not media_queue:
+            await query.answer("❌ No hay archivos en la cola", show_alert=True)
+            return
+        
+        queue_text = "📋 **Cola de Archivos:**\n\n"
+        
+        for i, item in enumerate(media_queue, 1):
+            status_icon = "✅" if item.get('title') and item.get('description') else "⏳"
+            price_text = f"{item['price']} ⭐" if item['price'] > 0 else "GRATIS"
+            
+            queue_text += f"{status_icon} **#{i}** - {item['type']} ({price_text})\n"
+            queue_text += f"📝 {item.get('title', '_Sin título_')}\n"
+            queue_text += f"📄 {item.get('description', '_Sin descripción_')[:50]}...\n\n"
+        
+        # Botones para gestionar la cola
+        keyboard = [
+            [InlineKeyboardButton("⚙️ Configurar Todo", callback_data="batch_setup")],
+            [InlineKeyboardButton("✅ Publicar Todo", callback_data="publish_all")],
+            [InlineKeyboardButton("🔄 Actualizar", callback_data="view_queue")],
+            [InlineKeyboardButton("🗑️ Limpiar Cola", callback_data="clear_queue")]
+        ]
+        
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        await query.edit_message_text(
+            queue_text,
+            parse_mode='Markdown',
+            reply_markup=reply_markup
+        )
+    
+    elif data == "batch_setup":
+        media_queue = context.user_data.get('media_queue', [])
+        
+        if not media_queue:
+            await query.answer("❌ No hay archivos en la cola", show_alert=True)
+            return
+        
+        keyboard = [
+            [InlineKeyboardButton("✏️ Establecer Título General", callback_data="batch_title")],
+            [InlineKeyboardButton("📝 Establecer Descripción General", callback_data="batch_description")],
+            [InlineKeyboardButton("💰 Establecer Precio General", callback_data="batch_price")],
+            [InlineKeyboardButton("🔄 Configurar Individual", callback_data="individual_setup")],
+            [InlineKeyboardButton("⬅️ Volver a Cola", callback_data="view_queue")]
+        ]
+        
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        await query.edit_message_text(
+            f"⚙️ **Configuración Masiva**\n\n"
+            f"📊 **Archivos en cola:** {len(media_queue)}\n\n"
+            f"Elige cómo quieres configurar los archivos:",
+            parse_mode='Markdown',
+            reply_markup=reply_markup
+        )
+    
+    elif data == "publish_all":
+        media_queue = context.user_data.get('media_queue', [])
+        
+        if not media_queue:
+            await query.answer("❌ No hay archivos para publicar", show_alert=True)
+            return
+        
+        # Verificar que todos los archivos tengan título y descripción
+        incomplete = []
+        for i, item in enumerate(media_queue):
+            if not item.get('title') or not item.get('description'):
+                incomplete.append(i + 1)
+        
+        if incomplete:
+            await query.answer(f"❌ Archivos sin configurar: #{', #'.join(map(str, incomplete))}", show_alert=True)
+            return
+        
+        await query.edit_message_text(
+            f"📡 **Publicando {len(media_queue)} archivos...**\n\n"
+            f"⏳ Por favor espera mientras se procesan todos los archivos.",
+            parse_mode='Markdown'
+        )
+        
+        published_count = 0
+        failed_count = 0
+        
+        for i, media_data in enumerate(media_queue):
+            try:
+                content_id = content_bot.add_content(
+                    media_data['title'],
+                    media_data['description'],
+                    media_data['type'],
+                    media_data['file_id'],
+                    media_data['price']
+                )
+                
+                if content_id:
+                    published_count += 1
+                    # Enviar a todos los usuarios
+                    await broadcast_new_content(context, content_id)
+                    
+                    # Pequeña pausa entre publicaciones
+                    import asyncio
+                    await asyncio.sleep(0.5)
+                else:
+                    failed_count += 1
+            except Exception as e:
+                logger.error(f"Error publicando archivo {i+1}: {e}")
+                failed_count += 1
+        
+        # Limpiar cola después de publicar
+        context.user_data['media_queue'] = []
+        
+        result_text = f"✅ **¡Publicación completada!**\n\n"
+        result_text += f"📊 **Resultados:**\n"
+        result_text += f"✅ Publicados: {published_count}\n"
+        if failed_count > 0:
+            result_text += f"❌ Fallidos: {failed_count}\n"
+        result_text += f"\n📡 **Todos los archivos han sido enviados a los usuarios**"
+        
+        await query.edit_message_text(
+            result_text,
+            parse_mode='Markdown'
+        )
+    
+    elif data == "clear_queue":
+        context.user_data['media_queue'] = []
+        await query.edit_message_text(
+            "🗑️ **Cola limpiada**\n\n"
+            "Todos los archivos han sido eliminados de la cola.\n\n"
+            "Puedes empezar a enviar nuevos archivos.",
+            parse_mode='Markdown'
+        )
+    
+    elif data.startswith("batch_"):
+        batch_type = data.split("_")[1]
+        
+        if batch_type == "title":
+            context.user_data['waiting_for'] = 'batch_title'
+            await query.edit_message_text(
+                "✏️ **Título General para Todos los Archivos**\n\n"
+                "Envía el título que se aplicará a todos los archivos de la cola:\n\n"
+                "💡 Tip: Se agregará un número automáticamente a cada uno",
+                parse_mode='Markdown'
+            )
+        elif batch_type == "description":
+            context.user_data['waiting_for'] = 'batch_description'
+            await query.edit_message_text(
+                "📝 **Descripción General para Todos los Archivos**\n\n"
+                "Envía la descripción que se aplicará a todos los archivos:",
+                parse_mode='Markdown'
+            )
+        elif batch_type == "price":
+            keyboard = [
+                [InlineKeyboardButton("🆓 Gratis", callback_data="batch_price_0")],
+                [InlineKeyboardButton("⭐ 5 estrellas", callback_data="batch_price_5"),
+                 InlineKeyboardButton("⭐ 10 estrellas", callback_data="batch_price_10")],
+                [InlineKeyboardButton("⭐ 25 estrellas", callback_data="batch_price_25"),
+                 InlineKeyboardButton("⭐ 50 estrellas", callback_data="batch_price_50")],
+                [InlineKeyboardButton("⭐ 100 estrellas", callback_data="batch_price_100"),
+                 InlineKeyboardButton("⭐ 200 estrellas", callback_data="batch_price_200")],
+                [InlineKeyboardButton("💰 Precio Personalizado", callback_data="batch_custom_price")],
+                [InlineKeyboardButton("⬅️ Volver", callback_data="batch_setup")]
+            ]
+            
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            
+            await query.edit_message_text(
+                "💰 **Precio General para Todos los Archivos**\n\n"
+                "Selecciona el precio que se aplicará a todos los archivos:",
+                parse_mode='Markdown',
+                reply_markup=reply_markup
+            )
+    
+    elif data.startswith("batch_price_"):
+        price = int(data.split("_")[2])
+        media_queue = context.user_data.get('media_queue', [])
+        
+        for item in media_queue:
+            item['price'] = price
+        
+        await query.edit_message_text(
+            f"✅ **Precio aplicado a todos los archivos**\n\n"
+            f"💰 **Precio:** {price} {'estrellas ⭐' if price > 0 else '(GRATIS)'}\n"
+            f"📊 **Archivos afectados:** {len(media_queue)}\n\n"
+            f"Puedes continuar configurando otros aspectos o publicar todo.",
+            parse_mode='Markdown'
+        )
+    
+    elif data == "batch_custom_price":
+        context.user_data['waiting_for'] = 'batch_custom_price'
+        await query.edit_message_text(
+            "💰 **Precio Personalizado**\n\n"
+            "Envía el número de estrellas (0 para gratis):",
+            parse_mode='Markdown'
+        )
+    
     # Nuevos handlers para gestión individual de contenido
     elif data.startswith("manage_content_"):
         if not content_bot.is_admin(user_id):
@@ -1145,6 +1341,64 @@ async def handle_text_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
             reply_markup=reply_markup
         )
     
+    # === NUEVOS HANDLERS PARA CONFIGURACIÓN MASIVA ===
+    elif waiting_for == 'batch_title':
+        media_queue = context.user_data.get('media_queue', [])
+        base_title = update.message.text
+        
+        for i, item in enumerate(media_queue, 1):
+            if len(media_queue) > 1:
+                item['title'] = f"{base_title} #{i}"
+            else:
+                item['title'] = base_title
+        
+        await update.message.reply_text(
+            f"✅ **Títulos establecidos para {len(media_queue)} archivos**\n\n"
+            f"📝 **Título base:** {base_title}\n"
+            f"💡 **Se agregó numeración automática**\n\n"
+            f"Puedes continuar configurando otros aspectos.",
+            parse_mode='Markdown'
+        )
+        del context.user_data['waiting_for']
+    
+    elif waiting_for == 'batch_description':
+        media_queue = context.user_data.get('media_queue', [])
+        description = update.message.text
+        
+        for item in media_queue:
+            item['description'] = description
+        
+        await update.message.reply_text(
+            f"✅ **Descripción aplicada a {len(media_queue)} archivos**\n\n"
+            f"📝 **Descripción:** {description[:100]}{'...' if len(description) > 100 else ''}\n\n"
+            f"Puedes continuar configurando otros aspectos.",
+            parse_mode='Markdown'
+        )
+        del context.user_data['waiting_for']
+    
+    elif waiting_for == 'batch_custom_price':
+        try:
+            price = int(update.message.text)
+            media_queue = context.user_data.get('media_queue', [])
+            
+            for item in media_queue:
+                item['price'] = price
+            
+            await update.message.reply_text(
+                f"✅ **Precio personalizado aplicado**\n\n"
+                f"💰 **Precio:** {price} {'estrellas ⭐' if price > 0 else '(GRATIS)'}\n"
+                f"📊 **Archivos afectados:** {len(media_queue)}\n\n"
+                f"Puedes continuar configurando otros aspectos o publicar todo.",
+                parse_mode='Markdown'
+            )
+            del context.user_data['waiting_for']
+        except ValueError:
+            await update.message.reply_text(
+                "❌ **Precio inválido**\n\n"
+                "Por favor, envía un número entero (0 para gratis).",
+                parse_mode='Markdown'
+            )
+    
     elif waiting_for == 'custom_price':
         try:
             price = int(update.message.text)
@@ -1268,7 +1522,7 @@ async def add_content_command(update: Update, context: ContextTypes.DEFAULT_TYPE
         await update.message.reply_text(f"❌ Error: {str(e)}")
 
 async def handle_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Maneja archivos de media enviados"""
+    """Maneja archivos de media enviados (permite múltiples archivos)"""
     if not update.effective_user or not update.message:
         return
         
@@ -1282,43 +1536,55 @@ async def handle_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.message.photo:
         media_type = "photo"
         file_id = update.message.photo[-1].file_id
+        filename = "Foto"
     elif update.message.video:
         media_type = "video"
         file_id = update.message.video.file_id
+        filename = update.message.video.file_name or "Video"
     elif update.message.document:
         media_type = "document"
         file_id = update.message.document.file_id
+        filename = update.message.document.file_name or "Documento"
     else:
         await update.message.reply_text("❌ Tipo de archivo no soportado.")
         return
     
-    # Guardar en contexto del usuario y mostrar botones de configuración
-    context.user_data['pending_media'] = {
+    # Inicializar cola de archivos si no existe
+    if 'media_queue' not in context.user_data:
+        context.user_data['media_queue'] = []
+    
+    # Agregar archivo a la cola
+    media_item = {
         'type': media_type,
         'file_id': file_id,
+        'filename': filename,
         'title': '',
         'description': '',
         'price': 0
     }
     
-    # Mostrar botones para configurar el contenido
+    context.user_data['media_queue'].append(media_item)
+    queue_length = len(context.user_data['media_queue'])
+    
+    # Mostrar botones para gestionar la cola
     keyboard = [
-        [InlineKeyboardButton("✏️ Establecer Título", callback_data="setup_title")],
-        [InlineKeyboardButton("📝 Establecer Descripción", callback_data="setup_description")],
-        [InlineKeyboardButton("💰 Establecer Precio", callback_data="setup_price")],
-        [InlineKeyboardButton("✅ Publicar Contenido", callback_data="publish_content")],
-        [InlineKeyboardButton("❌ Cancelar", callback_data="cancel_upload")]
+        [InlineKeyboardButton(f"📋 Ver Cola ({queue_length})", callback_data="view_queue")],
+        [InlineKeyboardButton("⚙️ Configurar Todo", callback_data="batch_setup")],
+        [InlineKeyboardButton("✅ Publicar Todo", callback_data="publish_all")],
+        [InlineKeyboardButton("🗑️ Limpiar Cola", callback_data="clear_queue")]
     ]
     
     reply_markup = InlineKeyboardMarkup(keyboard)
     
     await update.message.reply_text(
-        f"📁 **Archivo recibido** ({media_type})\n\n"
-        f"🔧 **Configurar publicación:**\n"
-        f"✏️ Título: _No establecido_\n"
-        f"📝 Descripción: _No establecida_\n"
-        f"💰 Precio: **0 estrellas** (gratuito)\n\n"
-        f"Usa los botones para configurar tu publicación:",
+        f"📁 **Archivo #{queue_length} agregado**\n\n"
+        f"📂 **Tipo:** {media_type}\n"
+        f"📝 **Nombre:** {filename}\n\n"
+        f"📊 **Cola actual:** {queue_length} archivo(s)\n"
+        f"🎥 **Fotos:** {sum(1 for item in context.user_data['media_queue'] if item['type'] == 'photo')}\n"
+        f"🎬 **Videos:** {sum(1 for item in context.user_data['media_queue'] if item['type'] == 'video')}\n"
+        f"📄 **Documentos:** {sum(1 for item in context.user_data['media_queue'] if item['type'] == 'document')}\n\n"
+        f"💡 **Puedes seguir enviando más archivos o configurar los existentes:**",
         parse_mode='Markdown',
         reply_markup=reply_markup
     )
