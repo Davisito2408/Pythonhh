@@ -456,7 +456,7 @@ async def broadcast_media_group(context: ContextTypes.DEFAULT_TYPE, content_id: 
                 
                 if paid_media_items:
                     # Usar send_paid_media nativo de Telegram
-                    caption = f"**{title}**\n\n{description}"
+                    caption = f"**{description}**"
                     await context.bot.send_paid_media(
                         chat_id=user_id,
                         star_count=price,
@@ -1003,13 +1003,13 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif data == "publish_content":
         media_data = context.user_data.get('pending_media', {})
         
-        if not media_data.get('title') or not media_data.get('description'):
-            await query.answer("❌ Falta título o descripción", show_alert=True)
+        if not media_data.get('description'):
+            await query.answer("❌ Falta descripción", show_alert=True)
             return
         
         # Publicar contenido
         content_id = content_bot.add_content(
-            media_data['title'],
+            media_data['description'],  # Título ahora es la descripción
             media_data['description'], 
             media_data['type'],
             media_data['file_id'],
@@ -1019,7 +1019,6 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if content_id:
             await query.edit_message_text(
                 f"✅ **¡Contenido publicado!**\n\n"
-                f"📺 **Título:** {media_data['title']}\n"
                 f"📝 **Descripción:** {media_data['description']}\n"
                 f"💰 **Precio:** {media_data['price']} estrellas\n\n"
                 f"📡 **Enviando a todos los usuarios...**",
@@ -1032,7 +1031,6 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             # Actualizar mensaje de confirmación
             await query.edit_message_text(
                 f"✅ **¡Contenido publicado y enviado!**\n\n"
-                f"📺 **Título:** {media_data['title']}\n"
                 f"📝 **Descripción:** {media_data['description']}\n"
                 f"💰 **Precio:** {media_data['price']} estrellas\n\n"
                 f"✉️ **Enviado a todos los usuarios del canal**",
@@ -1116,8 +1114,8 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif data == "publish_group":
         media_group_data = context.user_data.get('media_group', {})
         
-        if not media_group_data.get('title') or not media_group_data.get('description'):
-            await query.answer("❌ Falta título o descripción del grupo", show_alert=True)
+        if not media_group_data.get('description'):
+            await query.answer("❌ Falta descripción del grupo", show_alert=True)
             return
         
         # Publicar grupo usando sendMediaGroup nativo
@@ -1654,7 +1652,6 @@ async def show_group_preview(query, context: ContextTypes.DEFAULT_TYPE):
 async def publish_media_group(query, context: ContextTypes.DEFAULT_TYPE, group_data: dict):
     """Publica el grupo de archivos usando sendMediaGroup nativo de Telegram"""
     files = group_data.get('files', [])
-    title = group_data['title']
     description = group_data['description']
     price = group_data['price']
     
@@ -1666,7 +1663,6 @@ async def publish_media_group(query, context: ContextTypes.DEFAULT_TYPE, group_d
         # Actualizar mensaje indicando que se está procesando
         await query.edit_message_text(
             f"⏳ **Procesando grupo de {len(files)} archivos...**\n\n"
-            f"📺 **Título:** {title}\n"
             f"📝 **Descripción:** {description}\n"
             f"💰 **Precio:** {price} estrellas\n\n"
             f"📡 **Preparando para envío...**",
@@ -1680,19 +1676,19 @@ async def publish_media_group(query, context: ContextTypes.DEFAULT_TYPE, group_d
             if file_data['type'] == 'photo':
                 media_item = InputMediaPhoto(
                     media=file_data['file_id'],
-                    caption=f"{title}\n\n{description}" if i == 0 else None,  # Solo primer archivo lleva caption
+                    caption=f"{description}" if i == 0 else None,  # Solo primer archivo lleva caption
                     parse_mode='Markdown'
                 )
             elif file_data['type'] == 'video':
                 media_item = InputMediaVideo(
                     media=file_data['file_id'],
-                    caption=f"{title}\n\n{description}" if i == 0 else None,
+                    caption=f"{description}" if i == 0 else None,
                     parse_mode='Markdown'
                 )
             elif file_data['type'] == 'document':
                 media_item = InputMediaDocument(
                     media=file_data['file_id'],
-                    caption=f"{title}\n\n{description}" if i == 0 else None,
+                    caption=f"{description}" if i == 0 else None,
                     parse_mode='Markdown'
                 )
             else:
@@ -1705,13 +1701,12 @@ async def publish_media_group(query, context: ContextTypes.DEFAULT_TYPE, group_d
             return
         
         # Guardar en base de datos como contenido de grupo
-        content_id = content_bot.add_media_group_content(title, description, files, price)
+        content_id = content_bot.add_media_group_content(description, description, files, price)  # título ahora es descripción
         
         if content_id:
             # Actualizar mensaje de confirmación
             await query.edit_message_text(
                 f"✅ **¡Grupo publicado!**\n\n"
-                f"📺 **Título:** {title}\n"
                 f"📝 **Descripción:** {description}\n"
                 f"💰 **Precio:** {price} estrellas\n"
                 f"📊 **Archivos:** {len(files)}\n\n"
