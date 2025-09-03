@@ -1415,9 +1415,55 @@ def main():
     application.add_handler(PreCheckoutQueryHandler(pre_checkout_handler))
     application.add_handler(MessageHandler(filters.SUCCESSFUL_PAYMENT, successful_payment))
     
-    # Iniciar bot
-    logger.info("Iniciando bot...")
-    application.run_polling(allowed_updates=Update.ALL_TYPES)
+    # Verificar si estamos en Render (necesita servidor web)
+    port = os.getenv('PORT')
+    if port:
+        # En Render: Ejecutar bot con servidor web
+        import threading
+        from http.server import HTTPServer, SimpleHTTPRequestHandler
+        import json
+        from datetime import datetime
+        
+        class BotHTTPRequestHandler(SimpleHTTPRequestHandler):
+            def do_GET(self):
+                if self.path == '/':
+                    self.send_response(200)
+                    self.send_header('Content-type', 'application/json')
+                    self.end_headers()
+                    status = {
+                        'status': 'ok',
+                        'bot': 'telegram-premium-bot',
+                        'time': datetime.now().isoformat(),
+                        'message': 'Bot de Telegram funcionando correctamente'
+                    }
+                    self.wfile.write(json.dumps(status).encode())
+                elif self.path == '/health':
+                    self.send_response(200)
+                    self.send_header('Content-type', 'text/plain')
+                    self.end_headers()
+                    self.wfile.write(b'OK')
+                else:
+                    super().do_GET()
+        
+        def run_web_server():
+            server = HTTPServer(('0.0.0.0', int(port)), BotHTTPRequestHandler)
+            logger.info(f"Servidor web iniciado en puerto {port}")
+            server.serve_forever()
+        
+        def run_bot():
+            logger.info("Iniciando bot...")
+            application.run_polling(allowed_updates=Update.ALL_TYPES)
+        
+        # Iniciar servidor web en hilo separado
+        web_thread = threading.Thread(target=run_web_server, daemon=True)
+        web_thread.start()
+        
+        # Ejecutar bot en hilo principal
+        run_bot()
+    else:
+        # Localmente: Solo bot
+        logger.info("Iniciando bot...")
+        application.run_polling(allowed_updates=Update.ALL_TYPES)
 
 if __name__ == '__main__':
     main()
