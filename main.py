@@ -313,29 +313,16 @@ class ContentBot:
             
             # Serializar información de todos los archivos en el campo description
             import json
-            # Extraer solo los datos serializables de los archivos
-            serializable_files = []
-            for file_data in files:
-                if isinstance(file_data, dict):
-                    # Ya es un dict serializable
-                    serializable_files.append(file_data)
-                else:
-                    # Es un objeto Message u otro objeto, extraer datos básicos
-                    serializable_files.append({
-                        'file_id': getattr(file_data, 'file_id', ''),
-                        'type': getattr(file_data, 'type', 'unknown'),
-                        'file_size': getattr(file_data, 'file_size', 0)
-                    })
-            
+            # Los archivos ya son diccionarios serializables
             group_info = {
                 'description': description,
-                'files': serializable_files,
-                'total_files': len(serializable_files)
+                'files': files,
+                'total_files': len(files)
             }
             serialized_description = json.dumps(group_info, ensure_ascii=False)
             
-            # Usar el file_id del primer archivo serializable
-            main_file_id = serializable_files[0].get('file_id', '') if serializable_files else ''
+            # Usar el file_id del primer archivo
+            main_file_id = files[0].get('file_id', '') if files else ''
             
             cursor.execute('''
             INSERT INTO content (title, description, media_type, media_file_id, price_stars)
@@ -1979,7 +1966,7 @@ async def handle_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
         'type': media_type,
         'file_id': file_id,
         'filename': filename,
-        'message': message
+        'file_size': getattr(getattr(message, media_type, None), 'file_size', 0) if hasattr(message, media_type) else 0
     }
     
     if not media_group_id:
@@ -2065,33 +2052,20 @@ async def process_media_group_final(update: Update, context: ContextTypes.DEFAUL
     if 'media_queue' in context.user_data:
         del context.user_data['media_queue']
     
-    # Convertir archivos a formato serializable
-    serializable_files = []
-    for file_data in files:
-        if isinstance(file_data, dict):
-            # Ya es serializable
-            serializable_files.append(file_data)
-        else:
-            # Es un objeto, extraer solo los datos necesarios
-            serializable_files.append({
-                'file_id': file_data.get('file_id', ''),
-                'type': file_data.get('type', 'unknown'),
-                'file_size': file_data.get('file_size', 0)
-            })
-    
+    # Los archivos ya están en formato serializable (dict)
     # Configurar grupo de archivos
     context.user_data['media_group'] = {
-        'files': serializable_files,
+        'files': files,
         'title': '',
         'description': '',
         'price': 0,
         'is_group': True
     }
     
-    file_count = len(serializable_files)
-    photo_count = sum(1 for f in serializable_files if f['type'] == 'photo')
-    video_count = sum(1 for f in serializable_files if f['type'] == 'video')
-    doc_count = sum(1 for f in serializable_files if f['type'] == 'document')
+    file_count = len(files)
+    photo_count = sum(1 for f in files if f['type'] == 'photo')
+    video_count = sum(1 for f in files if f['type'] == 'video')
+    doc_count = sum(1 for f in files if f['type'] == 'document')
     
     keyboard = [
         [InlineKeyboardButton("✏️ Título del Grupo", callback_data="setup_group_title")],
