@@ -2065,19 +2065,33 @@ async def process_media_group_final(update: Update, context: ContextTypes.DEFAUL
     if 'media_queue' in context.user_data:
         del context.user_data['media_queue']
     
+    # Convertir archivos a formato serializable
+    serializable_files = []
+    for file_data in files:
+        if isinstance(file_data, dict):
+            # Ya es serializable
+            serializable_files.append(file_data)
+        else:
+            # Es un objeto, extraer solo los datos necesarios
+            serializable_files.append({
+                'file_id': file_data.get('file_id', ''),
+                'type': file_data.get('type', 'unknown'),
+                'file_size': file_data.get('file_size', 0)
+            })
+    
     # Configurar grupo de archivos
     context.user_data['media_group'] = {
-        'files': files,
+        'files': serializable_files,
         'title': '',
         'description': '',
         'price': 0,
         'is_group': True
     }
     
-    file_count = len(files)
-    photo_count = sum(1 for f in files if f['type'] == 'photo')
-    video_count = sum(1 for f in files if f['type'] == 'video')
-    doc_count = sum(1 for f in files if f['type'] == 'document')
+    file_count = len(serializable_files)
+    photo_count = sum(1 for f in serializable_files if f['type'] == 'photo')
+    video_count = sum(1 for f in serializable_files if f['type'] == 'video')
+    doc_count = sum(1 for f in serializable_files if f['type'] == 'document')
     
     keyboard = [
         [InlineKeyboardButton("✏️ Título del Grupo", callback_data="setup_group_title")],
