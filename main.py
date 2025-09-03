@@ -243,6 +243,49 @@ class ContentBot:
         users = [row[0] for row in cursor.fetchall()]
         conn.close()
         return users
+    
+    def get_stats(self) -> Dict[str, Any]:
+        """Obtiene estadísticas del bot"""
+        conn = sqlite3.connect(DATABASE_NAME)
+        cursor = conn.cursor()
+        
+        # Total de usuarios
+        cursor.execute('SELECT COUNT(*) FROM users WHERE is_active = 1')
+        total_users = cursor.fetchone()[0]
+        
+        # Total de contenido
+        cursor.execute('SELECT COUNT(*) FROM content WHERE is_active = 1')
+        total_content = cursor.fetchone()[0]
+        
+        # Total de ventas
+        cursor.execute('SELECT COUNT(*) FROM purchases')
+        total_sales = cursor.fetchone()[0]
+        
+        # Total de estrellas ganadas
+        cursor.execute('SELECT SUM(stars_paid) FROM purchases')
+        total_stars = cursor.fetchone()[0] or 0
+        
+        # Contenido más vendido
+        cursor.execute('''
+        SELECT c.title, COUNT(p.id) as sales_count
+        FROM content c
+        LEFT JOIN purchases p ON c.id = p.content_id
+        WHERE c.is_active = 1
+        GROUP BY c.id, c.title
+        ORDER BY sales_count DESC
+        LIMIT 5
+        ''')
+        top_content = cursor.fetchall()
+        
+        conn.close()
+        
+        return {
+            'total_users': total_users,
+            'total_content': total_content,
+            'total_sales': total_sales,
+            'total_stars': total_stars,
+            'top_content': top_content
+        }
 
 async def broadcast_new_content(context: ContextTypes.DEFAULT_TYPE, content_id: int):
     """Envía nuevo contenido a todos los usuarios registrados"""
@@ -745,15 +788,156 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if content_bot.delete_content(content_id):
             await query.edit_message_text(
                 f"✅ **Contenido eliminado exitosamente**\n\n"
-                f"El contenido ha sido eliminado permanentemente de la base de datos.",
+                f"El contenido ha sido eliminado permanentemente.\n"
+                f"Se está notificando a todos los usuarios...",
                 parse_mode='Markdown'
             )
+            
+            # Notificar a todos los usuarios sobre el contenido actualizado
+            users = content_bot.get_all_users()
+            notification_text = (
+                "🔄 **Contenido actualizado**\n\n"
+                "El canal ha sido actualizado. Usa /start para ver el contenido actual."
+            )
+            
+            for user_id_notify in users:
+                try:
+                    await context.bot.send_message(
+                        chat_id=user_id_notify,
+                        text=notification_text,
+                        parse_mode='Markdown'
+                    )
+                    import asyncio
+                    await asyncio.sleep(0.1)
+                except Exception as e:
+                    logger.error(f"Error notificando usuario {user_id_notify}: {e}")
         else:
             await query.edit_message_text(
                 f"❌ **Error al eliminar**\n\n"
                 f"No se pudo eliminar el contenido. Inténtalo de nuevo.",
                 parse_mode='Markdown'
             )
+    
+    elif data == "admin_stats":
+        if not content_bot.is_admin(user_id):
+            await query.edit_message_text("❌ Sin permisos de administrador.")
+            return
+        
+        stats = content_bot.get_stats()
+        
+        # Formatear top content
+        top_content_text = ""
+        if stats['top_content']:
+            for i, (title, sales) in enumerate(stats['top_content'][:3], 1):
+                top_content_text += f"{i}. {title}: {sales} ventas\n"
+        else:
+            top_content_text = "Sin ventas aún"
+        
+        keyboard = [[InlineKeyboardButton("⬅️ Volver", callback_data="admin_back")]]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        await query.edit_message_text(
+            f"📊 **Estadísticas del Bot**\n\n"
+            f"👥 **Usuarios registrados:** {stats['total_users']}\n"
+            f"📁 **Contenido publicado:** {stats['total_content']}\n"
+            f"💰 **Ventas realizadas:** {stats['total_sales']}\n"
+            f"⭐ **Estrellas ganadas:** {stats['total_stars']}\n\n"
+            f"🏆 **Top contenido:**\n{top_content_text}",
+            parse_mode='Markdown',
+            reply_markup=reply_markup
+        )
+    
+    elif data == "admin_settings":
+        if not content_bot.is_admin(user_id):
+            await query.edit_message_text("❌ Sin permisos de administrador.")
+            return
+        
+        keyboard = [
+            [InlineKeyboardButton("🗑️ Limpiar chats de usuarios", callback_data="clean_user_chats")],
+            [InlineKeyboardButton("📊 Exportar estadísticas", callback_data="export_stats")],
+            [InlineKeyboardButton("⬅️ Volver", callback_data="admin_back")]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        await query.edit_message_text(
+            f"⚙️ **Configuración del Bot**\n\n"
+            f"Opciones de gestión avanzada:",
+            parse_mode='Markdown',
+            reply_markup=reply_markup
+        )
+    
+    elif data == "admin_back":
+        if not content_bot.is_admin(user_id):
+            await query.edit_message_text("❌ Sin permisos de administrador.")
+            return
+        
+        keyboard = [
+            [InlineKeyboardButton("➕ Añadir Contenido", callback_data="admin_add_content")],
+            [InlineKeyboardButton("📋 Gestionar Contenido", callback_data="admin_manage_content")],
+            [InlineKeyboardButton("📊 Estadísticas", callback_data="admin_stats")],
+            [InlineKeyboardButton("⚙️ Configuración", callback_data="admin_settings")]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        await query.edit_message_text(
+            "🔧 **Panel de Administración**\n\n"
+            "Selecciona una opción:",
+            reply_markup=reply_markup,
+            parse_mode='Markdown'
+        )
+    
+    elif data == "clean_user_chats":
+        if not content_bot.is_admin(user_id):
+            await query.edit_message_text("❌ Sin permisos de administrador.")
+            return
+        
+        await query.edit_message_text(
+            f"🧹 **Limpiar chats enviado**\n\n"
+            f"Se ha enviado un mensaje informativo a todos los usuarios "
+            f"notificando que el contenido ha sido actualizado.\n\n"
+            f"**Nota:** Los usuarios pueden usar /start para ver el contenido actualizado.",
+            parse_mode='Markdown'
+        )
+        
+        # Enviar notificación a todos los usuarios
+        users = content_bot.get_all_users()
+        notification_text = (
+            "🔄 **Contenido actualizado**\n\n"
+            "El canal ha sido actualizado. Usa /start para ver el contenido actual."
+        )
+        
+        for user_id_notify in users:
+            try:
+                await context.bot.send_message(
+                    chat_id=user_id_notify,
+                    text=notification_text,
+                    parse_mode='Markdown'
+                )
+                import asyncio
+                await asyncio.sleep(0.1)
+            except Exception as e:
+                logger.error(f"Error notificando usuario {user_id_notify}: {e}")
+    
+    elif data == "export_stats":
+        if not content_bot.is_admin(user_id):
+            await query.edit_message_text("❌ Sin permisos de administrador.")
+            return
+        
+        stats = content_bot.get_stats()
+        stats_text = (
+            f"📊 **Reporte Detallado**\n"
+            f"Fecha: {datetime.now().strftime('%Y-%m-%d %H:%M')}\n\n"
+            f"👥 Usuarios: {stats['total_users']}\n"
+            f"📁 Contenido: {stats['total_content']}\n"
+            f"💰 Ventas: {stats['total_sales']}\n"
+            f"⭐ Estrellas: {stats['total_stars']}\n\n"
+            f"🏆 **Top contenido:**\n"
+        )
+        
+        for i, (title, sales) in enumerate(stats['top_content'], 1):
+            stats_text += f"{i}. {title}: {sales} ventas\n"
+        
+        await query.edit_message_text(stats_text, parse_mode='Markdown')
 
 async def show_content_preview(query, context: ContextTypes.DEFAULT_TYPE):
     """Muestra vista previa del contenido en configuración"""
