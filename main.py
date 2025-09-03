@@ -1715,12 +1715,11 @@ async def publish_media_group(query, context: ContextTypes.DEFAULT_TYPE, group_d
             )
             
             # Enviar a todos los usuarios usando broadcast especial para grupos
-            await broadcast_media_group(context, content_id, media_items, title, description, price)
+            await broadcast_media_group(context, content_id, media_items, description, description, price)
             
             # Actualizar mensaje final
             await query.edit_message_text(
                 f"✅ **¡Grupo publicado y enviado!**\n\n"
-                f"📺 **Título:** {title}\n"
                 f"📝 **Descripción:** {description}\n"
                 f"💰 **Precio:** {price} estrellas\n"
                 f"📊 **Archivos:** {len(files)}\n\n"
