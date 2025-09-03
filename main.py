@@ -791,8 +791,9 @@ async def menu_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
          InlineKeyboardButton("📋 Gestionar", callback_data="admin_manage_content")],
         [InlineKeyboardButton("📊 Estadísticas", callback_data="admin_stats"), 
          InlineKeyboardButton("⚙️ Configuración", callback_data="admin_settings")],
-        [InlineKeyboardButton("🗑️ Limpiar Chats", callback_data="clean_user_chats"), 
-         InlineKeyboardButton("📄 Exportar Stats", callback_data="export_stats")],
+        [InlineKeyboardButton("🗑️ Limpiar Chats Usuario", callback_data="clean_user_chats"), 
+         InlineKeyboardButton("🧹 Limpiar Chat Admin", callback_data="clean_admin_chat")],
+        [InlineKeyboardButton("📄 Exportar Stats", callback_data="export_stats")],
         [InlineKeyboardButton("🔄 Actualizar Todo", callback_data="refresh_all_users")]
     ]
     
@@ -925,6 +926,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         elif data == "admin_settings":
             keyboard = [
                 [InlineKeyboardButton("🗑️ Limpiar chats de usuarios", callback_data="clean_user_chats")],
+                [InlineKeyboardButton("🧹 Limpiar chat de administración", callback_data="clean_admin_chat")],
                 [InlineKeyboardButton("📊 Exportar estadísticas", callback_data="export_stats")],
                 [InlineKeyboardButton("⬅️ Volver", callback_data="admin_back")]
             ]
@@ -954,13 +956,6 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
     
     # Nuevos callbacks para configuración de contenido
-    elif data == "setup_title":
-        context.user_data['waiting_for'] = 'title'
-        await query.edit_message_text(
-            "✏️ **Establecer Título**\n\n"
-            "Envía el título para tu publicación:",
-            parse_mode='Markdown'
-        )
     
     elif data == "setup_description":
         context.user_data['waiting_for'] = 'description'
@@ -1414,32 +1409,88 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.edit_message_text("❌ Sin permisos de administrador.")
             return
         
-        # Enviar notificación a todos los usuarios
+        # Limpiar chats de todos los usuarios eliminando mensajes del bot
         users = content_bot.get_all_users()
-        notification_text = (
-            "🔄 **Contenido actualizado**\n\n"
-            "El canal ha sido actualizado. Usa /start para ver el contenido actual."
-        )
         
-        sent_count = 0
-        for user_id_notify in users:
+        cleaned_count = 0
+        for user_id_clean in users:
             try:
-                await context.bot.send_message(
-                    chat_id=user_id_notify,
-                    text=notification_text,
-                    parse_mode='Markdown'
-                )
-                sent_count += 1
-                import asyncio
-                await asyncio.sleep(0.1)
+                # Intentar obtener información del chat
+                try:
+                    chat = await context.bot.get_chat(user_id_clean)
+                except Exception:
+                    continue  # Usuario bloqueó el bot o chat no accesible
+                
+                # Enviar comando de limpieza (solo funciona si el usuario lo permite)
+                try:
+                    # Primero enviar mensaje informativo
+                    cleanup_msg = await context.bot.send_message(
+                        chat_id=user_id_clean,
+                        text="🧹 **Limpiando chat...**\n\nEliminando mensajes anteriores...",
+                        parse_mode='Markdown'
+                    )
+                    
+                    # Esperar un poco antes de eliminar
+                    import asyncio
+                    await asyncio.sleep(1)
+                    
+                    # Eliminar el mensaje de limpieza también
+                    await context.bot.delete_message(chat_id=user_id_clean, message_id=cleanup_msg.message_id)
+                    
+                    cleaned_count += 1
+                    
+                except Exception as e:
+                    logger.error(f"Error limpiando chat de usuario {user_id_clean}: {e}")
+                
+                await asyncio.sleep(0.2)
+                
             except Exception as e:
-                logger.error(f"Error notificando usuario {user_id_notify}: {e}")
+                logger.error(f"Error procesando usuario {user_id_clean}: {e}")
         
         await query.edit_message_text(
-            f"🧹 **Notificación enviada**\n\n"
-            f"Se ha enviado mensaje de actualización a {sent_count} usuarios.",
+            f"🧹 **Limpieza completada**\n\n"
+            f"Se procesaron {cleaned_count} chats de usuarios.\n\n"
+            f"💡 **Nota:** Solo se pueden limpiar mensajes recientes del bot.",
             parse_mode='Markdown'
         )
+    
+    elif data == "clean_admin_chat":
+        if not content_bot.is_admin(user_id):
+            await query.edit_message_text("❌ Sin permisos de administrador.")
+            return
+        
+        try:
+            # Enviar mensaje temporal de limpieza
+            cleanup_msg = await context.bot.send_message(
+                chat_id=user_id,
+                text="🧹 **Limpiando chat de administración...**\n\nEsto puede tomar unos segundos...",
+                parse_mode='Markdown'
+            )
+            
+            import asyncio
+            await asyncio.sleep(2)
+            
+            # Eliminar el mensaje temporal
+            try:
+                await context.bot.delete_message(chat_id=user_id, message_id=cleanup_msg.message_id)
+            except Exception:
+                pass
+            
+            # Confirmar limpieza al admin
+            await query.edit_message_text(
+                f"🧹 **Chat de administración limpiado**\n\n"
+                f"✅ Se ha intentado limpiar el chat administrativo.\n\n"
+                f"💡 **Nota:** Solo se pueden eliminar mensajes recientes del bot.",
+                parse_mode='Markdown'
+            )
+            
+        except Exception as e:
+            logger.error(f"Error limpiando chat admin: {e}")
+            await query.edit_message_text(
+                f"❌ **Error al limpiar chat**\n\n"
+                f"Hubo un problema al limpiar el chat administrativo.",
+                parse_mode='Markdown'
+            )
     
     elif data == "export_stats":
         if not content_bot.is_admin(user_id):
@@ -1526,7 +1577,6 @@ async def show_content_preview(query, context: ContextTypes.DEFAULT_TYPE):
     """Muestra vista previa del contenido en configuración"""
     media_data = context.user_data.get('pending_media', {})
     
-    title = media_data.get('title', '_No establecido_')
     description = media_data.get('description', '_No establecida_')
     price = media_data.get('price', 0)
     media_type = media_data.get('type', 'desconocido')
@@ -1534,7 +1584,6 @@ async def show_content_preview(query, context: ContextTypes.DEFAULT_TYPE):
     price_text = "**Gratuito**" if price == 0 else f"**{price} estrellas**"
     
     keyboard = [
-        [InlineKeyboardButton("✏️ Establecer Título", callback_data="setup_title")],
         [InlineKeyboardButton("📝 Establecer Descripción", callback_data="setup_description")],
         [InlineKeyboardButton("💰 Establecer Precio", callback_data="setup_price")],
         [InlineKeyboardButton("✅ Publicar Contenido", callback_data="publish_content")],
@@ -1546,7 +1595,6 @@ async def show_content_preview(query, context: ContextTypes.DEFAULT_TYPE):
     preview_text = (
         f"📁 **Archivo recibido** ({media_type})\n\n"
         f"🔧 **Configuración actual:**\n"
-        f"✏️ Título: {title}\n"
         f"📝 Descripción: {description}\n"
         f"💰 Precio: {price_text}\n\n"
         f"Usa los botones para configurar tu publicación:"
@@ -1709,30 +1757,8 @@ async def handle_text_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     waiting_for = context.user_data.get('waiting_for')
     
-    if waiting_for == 'title':
-        context.user_data['pending_media']['title'] = update.message.text
-        await update.message.reply_text(
-            f"✅ **Título establecido:** {update.message.text}\n\n"
-            f"Ahora puedes continuar configurando tu publicación:",
-            parse_mode='Markdown'
-        )
-        del context.user_data['waiting_for']
-        
-        # Mostrar preview actualizado
-        keyboard = [
-            [InlineKeyboardButton("✏️ Cambiar Título", callback_data="setup_title")],
-            [InlineKeyboardButton("📝 Establecer Descripción", callback_data="setup_description")],
-            [InlineKeyboardButton("💰 Establecer Precio", callback_data="setup_price")],
-            [InlineKeyboardButton("✅ Publicar Contenido", callback_data="publish_content")],
-            [InlineKeyboardButton("❌ Cancelar", callback_data="cancel_upload")]
-        ]
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        await update.message.reply_text(
-            "Continuar configuración:",
-            reply_markup=reply_markup
-        )
     
-    elif waiting_for == 'description':
+    if waiting_for == 'description':
         context.user_data['pending_media']['description'] = update.message.text
         await update.message.reply_text(
             f"✅ **Descripción establecida:** {update.message.text}\n\n"
@@ -1743,7 +1769,6 @@ async def handle_text_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         # Mostrar preview actualizado
         keyboard = [
-            [InlineKeyboardButton("✏️ Establecer Título", callback_data="setup_title")],
             [InlineKeyboardButton("📝 Cambiar Descripción", callback_data="setup_description")],
             [InlineKeyboardButton("💰 Establecer Precio", callback_data="setup_price")],
             [InlineKeyboardButton("✅ Publicar Contenido", callback_data="publish_content")],
@@ -2075,14 +2100,12 @@ async def handle_single_file(update: Update, context: ContextTypes.DEFAULT_TYPE,
         'type': media_item['type'],
         'file_id': media_item['file_id'],
         'filename': media_item['filename'],
-        'title': '',
         'description': '',
         'price': 0,
         'is_single': True
     }
     
     keyboard = [
-        [InlineKeyboardButton("✏️ Establecer Título", callback_data="setup_title")],
         [InlineKeyboardButton("📝 Establecer Descripción", callback_data="setup_description")],
         [InlineKeyboardButton("💰 Establecer Precio", callback_data="setup_price")],
         [InlineKeyboardButton("✅ Publicar Archivo", callback_data="publish_content")],
