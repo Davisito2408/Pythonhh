@@ -209,6 +209,28 @@ class ContentBot:
             }
         return None
     
+    def delete_content(self, content_id: int) -> bool:
+        """Elimina contenido permanentemente de la base de datos"""
+        conn = sqlite3.connect(DATABASE_NAME)
+        cursor = conn.cursor()
+        
+        try:
+            # Eliminar de la tabla content
+            cursor.execute('DELETE FROM content WHERE id = ?', (content_id,))
+            
+            # Eliminar compras relacionadas (opcional - mantener para historial)
+            # cursor.execute('DELETE FROM purchases WHERE content_id = ?', (content_id,))
+            
+            conn.commit()
+            rows_affected = cursor.rowcount
+            conn.close()
+            
+            return rows_affected > 0
+        except Exception as e:
+            logger.error(f"Error eliminando contenido {content_id}: {e}")
+            conn.close()
+            return False
+    
     def get_all_users(self) -> List[int]:
         """Obtiene lista de todos los usuarios registrados"""
         conn = sqlite3.connect(DATABASE_NAME)
@@ -651,6 +673,87 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             del context.user_data['pending_media']
         if 'waiting_for' in context.user_data:
             del context.user_data['waiting_for']
+    
+    # Nuevos handlers para gestión individual de contenido
+    elif data.startswith("manage_content_"):
+        if not content_bot.is_admin(user_id):
+            await query.edit_message_text("❌ Sin permisos de administrador.")
+            return
+            
+        content_id = int(data.split("_")[2])
+        content = content_bot.get_content_by_id(content_id)
+        
+        if not content:
+            await query.edit_message_text("❌ Contenido no encontrado.")
+            return
+        
+        # Mostrar opciones de gestión para este contenido específico
+        keyboard = [
+            [InlineKeyboardButton("🗑️ Eliminar", callback_data=f"delete_content_{content_id}")],
+            [InlineKeyboardButton("⬅️ Volver", callback_data="admin_manage_content")]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        await query.edit_message_text(
+            f"⚙️ **Gestionar Contenido**\n\n"
+            f"📺 **Título:** {content['title']}\n"
+            f"📝 **Descripción:** {content['description']}\n"
+            f"💰 **Precio:** {content['price_stars']} estrellas\n"
+            f"📁 **Tipo:** {content['media_type']}\n\n"
+            f"¿Qué acción deseas realizar?",
+            parse_mode='Markdown',
+            reply_markup=reply_markup
+        )
+    
+    elif data.startswith("delete_content_"):
+        if not content_bot.is_admin(user_id):
+            await query.edit_message_text("❌ Sin permisos de administrador.")
+            return
+            
+        content_id = int(data.split("_")[2])
+        content = content_bot.get_content_by_id(content_id)
+        
+        if not content:
+            await query.edit_message_text("❌ Contenido no encontrado.")
+            return
+        
+        # Mostrar confirmación de eliminación
+        keyboard = [
+            [InlineKeyboardButton("✅ Sí, eliminar", callback_data=f"confirm_delete_{content_id}")],
+            [InlineKeyboardButton("❌ Cancelar", callback_data=f"manage_content_{content_id}")]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        await query.edit_message_text(
+            f"⚠️ **¿Eliminar contenido?**\n\n"
+            f"📺 **Título:** {content['title']}\n"
+            f"💰 **Precio:** {content['price_stars']} estrellas\n\n"
+            f"**⚠️ Esta acción no se puede deshacer.**\n"
+            f"El contenido se eliminará permanentemente.",
+            parse_mode='Markdown',
+            reply_markup=reply_markup
+        )
+    
+    elif data.startswith("confirm_delete_"):
+        if not content_bot.is_admin(user_id):
+            await query.edit_message_text("❌ Sin permisos de administrador.")
+            return
+            
+        content_id = int(data.split("_")[2])
+        
+        # Ejecutar eliminación
+        if content_bot.delete_content(content_id):
+            await query.edit_message_text(
+                f"✅ **Contenido eliminado exitosamente**\n\n"
+                f"El contenido ha sido eliminado permanentemente de la base de datos.",
+                parse_mode='Markdown'
+            )
+        else:
+            await query.edit_message_text(
+                f"❌ **Error al eliminar**\n\n"
+                f"No se pudo eliminar el contenido. Inténtalo de nuevo.",
+                parse_mode='Markdown'
+            )
 
 async def show_content_preview(query, context: ContextTypes.DEFAULT_TYPE):
     """Muestra vista previa del contenido en configuración"""
