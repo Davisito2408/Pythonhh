@@ -2260,16 +2260,35 @@ def main():
     # Configurar menú de comandos desplegable
     async def setup_commands():
         """Configura el menú desplegable de comandos"""
-        commands = [
+        from telegram import BotCommandScopeChat, BotCommandScopeDefault
+        
+        # Comandos para usuarios normales (menú básico)
+        user_commands = [
+            BotCommand("start", "🏠 Ver contenido del canal"),
+            BotCommand("catalogo", "📋 Ver catálogo disponible"),
+            BotCommand("ayuda", "❓ Obtener ayuda")
+        ]
+        
+        # Comandos para administrador (menú completo)
+        admin_commands = [
             BotCommand("start", "🏠 Ver contenido del canal"),
             BotCommand("catalogo", "📋 Ver catálogo disponible"),
             BotCommand("ayuda", "❓ Obtener ayuda"),
-            # Comandos de admin (visibles solo para admin pero útiles en el menú)
             BotCommand("admin", "🔧 Panel de administración"),
             BotCommand("menu", "📱 Menú de comandos completo")
         ]
-        await application.bot.set_my_commands(commands)
-        logger.info("Menú de comandos configurado")
+        
+        # Configurar comandos por defecto para usuarios normales
+        await application.bot.set_my_commands(user_commands, scope=BotCommandScopeDefault())
+        
+        # Configurar comandos específicos para el administrador
+        if ADMIN_USER_ID != 0:
+            await application.bot.set_my_commands(
+                admin_commands, 
+                scope=BotCommandScopeChat(chat_id=ADMIN_USER_ID)
+            )
+        
+        logger.info("Menú de comandos configurado: usuarios normales y administrador")
     
     # Añadir manejadores principales (experiencia de canal)
     application.add_handler(CommandHandler("start", start))
