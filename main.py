@@ -129,14 +129,14 @@ class ContentBot:
             SELECT id, title, description, media_type, media_file_id, price_stars
             FROM content 
             WHERE is_active = 1
-            ORDER BY created_at DESC
+            ORDER BY created_at ASC
             ''')
         else:
             # Todo el contenido para admin
             cursor.execute('''
             SELECT id, title, description, media_type, media_file_id, price_stars, is_active
             FROM content 
-            ORDER BY created_at DESC
+            ORDER BY created_at ASC
             ''')
         
         content = []
