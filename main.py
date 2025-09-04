@@ -1893,7 +1893,10 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             'fr': "✅ **Langue configurée**\n\nParfait ! Vous utiliserez maintenant le bot en français.",
             'pt': "✅ **Idioma configurado**\n\nPerfeito! Agora você usará o bot em português.",
             'it': "✅ **Lingua configurata**\n\nPerfetto! Ora userai il bot in italiano.",
-            'de': "✅ **Sprache konfiguriert**\n\nPerfekt! Sie werden den Bot jetzt auf Deutsch verwenden."
+            'de': "✅ **Sprache konfiguriert**\n\nPerfekt! Sie werden den Bot jetzt auf Deutsch verwenden.",
+            'ru': "✅ **Язык настроен**\n\nОтлично! Теперь вы будете использовать бота на русском языке.",
+            'hi': "✅ **भाषा कॉन्फ़िगर की गई**\n\nबहुत अच्छा! अब आप बॉट का उपयोग हिंदी में करेंगे।",
+            'ar': "✅ **تم تكوين اللغة**\n\nممتاز! الآن ستستخدم البوت باللغة العربية."
         }
         text = language_messages.get(language, language_messages['es'])
         
@@ -1959,7 +1962,10 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             'fr': "✅ **Langue configurée**\n\nParfait ! Vous utiliserez maintenant le bot en français.",
             'pt': "✅ **Idioma configurado**\n\nPerfeito! Agora você usará o bot em português.",
             'it': "✅ **Lingua configurata**\n\nPerfetto! Ora userai il bot in italiano.",
-            'de': "✅ **Sprache konfiguriert**\n\nPerfekt! Sie werden den Bot jetzt auf Deutsch verwenden."
+            'de': "✅ **Sprache konfiguriert**\n\nPerfekt! Sie werden den Bot jetzt auf Deutsch verwenden.",
+            'ru': "✅ **Язык настроен**\n\nОтлично! Теперь вы будете использовать бота на русском языке.",
+            'hi': "✅ **भाषा कॉन्फ़िगर की गई**\n\nबहुत अच्छा! अब आप बॉट का उपयोग हिंदी में करेंगे।",
+            'ar': "✅ **تم تكوين اللغة**\n\nممتاز! الآن ستستخدم البوت باللغة العربية."
         }
         text = language_messages.get(language, language_messages['es'])
         
