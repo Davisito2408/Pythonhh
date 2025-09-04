@@ -680,62 +680,27 @@ def get_content_description(content: dict, user_language: str) -> str:
     """Obtiene la descripción del contenido en el idioma del usuario"""
     description = ""
     
-    # Manejar media_group de forma especial
-    if content.get('media_type') == 'media_group':
-        import json
-        try:
-            # Para media_group, el contenido está en JSON
-            if isinstance(content['description'], str):
-                group_info = json.loads(content['description'])
-                base_description = group_info.get('description', '')
-            else:
-                base_description = content.get('description', '')
-                
-            # Buscar traducción para la descripción base
-            if user_language == 'en' and content.get('description_en'):
-                description = content['description_en']
-            elif user_language == 'fr' and content.get('description_fr'):
-                description = content['description_fr']
-            elif user_language == 'pt' and content.get('description_pt'):
-                description = content['description_pt']
-            elif user_language == 'it' and content.get('description_it'):
-                description = content['description_it']
-            elif user_language == 'de' and content.get('description_de'):
-                description = content['description_de']
-            elif user_language == 'ru' and content.get('description_ru'):
-                description = content['description_ru']
-            elif user_language == 'hi' and content.get('description_hi'):
-                description = content['description_hi']
-            elif user_language == 'ar' and content.get('description_ar'):
-                description = content['description_ar']
-            else:
-                description = base_description  # Usar descripción extraída del JSON
-                
-        except (json.JSONDecodeError, TypeError):
-            # Fallback si hay error con JSON
-            description = str(content.get('description', ''))
+    # Ahora el contenido viene con descripción limpia desde get_content_list
+    if user_language == 'en' and content.get('description_en'):
+        description = content['description_en']
+    elif user_language == 'fr' and content.get('description_fr'):
+        description = content['description_fr']
+    elif user_language == 'pt' and content.get('description_pt'):
+        description = content['description_pt']
+    elif user_language == 'it' and content.get('description_it'):
+        description = content['description_it']
+    elif user_language == 'de' and content.get('description_de'):
+        description = content['description_de']
+    elif user_language == 'ru' and content.get('description_ru'):
+        description = content['description_ru']
+    elif user_language == 'hi' and content.get('description_hi'):
+        description = content['description_hi']
+    elif user_language == 'ar' and content.get('description_ar'):
+        description = content['description_ar']
     else:
-        # Contenido normal (no media_group)
-        if user_language == 'en' and content.get('description_en'):
-            description = content['description_en']
-        elif user_language == 'fr' and content.get('description_fr'):
-            description = content['description_fr']
-        elif user_language == 'pt' and content.get('description_pt'):
-            description = content['description_pt']
-        elif user_language == 'it' and content.get('description_it'):
-            description = content['description_it']
-        elif user_language == 'de' and content.get('description_de'):
-            description = content['description_de']
-        elif user_language == 'ru' and content.get('description_ru'):
-            description = content['description_ru']
-        elif user_language == 'hi' and content.get('description_hi'):
-            description = content['description_hi']
-        elif user_language == 'ar' and content.get('description_ar'):
-            description = content['description_ar']
-        else:
-            description = content.get('description', '')  # Fallback al español
+        description = content.get('description', '')  # Fallback al español
     
-    # Escapar caracteres especiales para evitar errores de parseo
+    # Escapar solo caracteres realmente problemáticos
     return escape_markdown(description)
 
 # Función simple de traducción usando transformación básica
@@ -1133,11 +1098,21 @@ Si tienes problemas, contacta al administrador del canal.'''))
         
         content = []
         for row in cursor.fetchall():
+            # Extraer descripción limpia para media_group
+            description = row[2]
+            if row[11] == 'media_group':  # media_type es media_group
+                import json
+                try:
+                    group_info = json.loads(row[2])
+                    description = group_info.get('description', '')
+                except (json.JSONDecodeError, TypeError):
+                    description = str(row[2])
+            
             if user_id and not self.is_admin(user_id):
                 content.append({
                     'id': row[0],
                     'title': row[1],
-                    'description': row[2],
+                    'description': description,  # Descripción limpia
                     'description_en': row[3],
                     'description_fr': row[4],
                     'description_pt': row[5],
@@ -1154,7 +1129,7 @@ Si tienes problemas, contacta al administrador del canal.'''))
                 content.append({
                     'id': row[0],
                     'title': row[1],
-                    'description': row[2],
+                    'description': description,  # Descripción limpia
                     'description_en': row[3],
                     'description_fr': row[4],
                     'description_pt': row[5],
@@ -1598,36 +1573,38 @@ async def send_channel_post(update: Update, context: ContextTypes.DEFAULT_TYPE, 
                 parse_mode='Markdown'
             )
         elif content['media_type'] == 'media_group':
-            # Para grupos de medios gratuitos, usar send_media_group
-            import json
+            # Para grupos de medios gratuitos - obtener archivos del JSON original
             try:
-                # Deserializar los archivos del grupo
-                group_info = json.loads(content['description'])
-                files = group_info.get('files', [])
-                
-                # Convertir a InputMedia* - ESTÁNDAR TELEGRAM: caption solo en primer elemento
-                media_items = []
-                for i, file_data in enumerate(files):
-                    # Según API oficial: caption SOLO en primer elemento
-                    caption_text = caption if i == 0 else None
-                    if file_data['type'] == 'photo':
-                        media_items.append(InputMediaPhoto(
-                            media=file_data['file_id'],
-                            caption=caption_text,
-                            parse_mode='Markdown' if caption_text else None
-                        ))
-                    elif file_data['type'] == 'video':
-                        media_items.append(InputMediaVideo(
-                            media=file_data['file_id'],
-                            caption=caption_text,
-                            parse_mode='Markdown' if caption_text else None
-                        ))
-                
-                if media_items:
-                    await context.bot.send_media_group(
-                        chat_id=chat_id,
-                        media=media_items
-                    )
+                # Obtener el grupo completo de la base de datos
+                group_data = content_bot.get_media_group_by_id(content['id'])
+                if group_data and group_data.get('files'):
+                    files = group_data['files']
+                    
+                    # Convertir a InputMedia* - ESTÁNDAR TELEGRAM: caption solo en primer elemento
+                    media_items = []
+                    for i, file_data in enumerate(files):
+                        # Según API oficial: caption SOLO en primer elemento
+                        caption_text = caption if i == 0 else None
+                        if file_data['type'] == 'photo':
+                            media_items.append(InputMediaPhoto(
+                                media=file_data['file_id'],
+                                caption=caption_text,
+                                parse_mode='Markdown' if caption_text else None
+                            ))
+                        elif file_data['type'] == 'video':
+                            media_items.append(InputMediaVideo(
+                                media=file_data['file_id'],
+                                caption=caption_text,
+                                parse_mode='Markdown' if caption_text else None
+                            ))
+                    
+                    if media_items:
+                        await context.bot.send_media_group(
+                            chat_id=chat_id,
+                            media=media_items
+                        )
+                else:
+                    raise Exception("No se encontraron archivos en el grupo")
             except Exception as e:
                 logger.error(f"Error enviando grupo de medios gratuito: {e}")
                 # Fallback a mensaje de texto
@@ -1665,33 +1642,31 @@ async def send_channel_post(update: Update, context: ContextTypes.DEFAULT_TYPE, 
                 parse_mode='Markdown'
             )
         elif content['media_type'] == 'media_group':
-            # Para grupos de medios, usar send_paid_media con múltiples archivos
-            import json
+            # Para grupos de medios pagados - necesitamos obtener los archivos del JSON original
             try:
-                # Deserializar los archivos del grupo
-                group_info = json.loads(content['description'])
-                files = group_info.get('files', [])
-                # SIMPLIFICADO: solo título para sendPaidMedia también
-                # Obtener descripción traducida para grupos pagados
-                user_language = content_bot.get_user_language(user_id)
-                final_caption = get_content_description(content, user_language)
-                
-                # Convertir a InputPaidMedia*
-                paid_media_items = []
-                for file_data in files:
-                    if file_data['type'] == 'photo':
-                        paid_media_items.append(InputPaidMediaPhoto(media=file_data['file_id']))
-                    elif file_data['type'] == 'video':
-                        paid_media_items.append(InputPaidMediaVideo(media=file_data['file_id']))
-                
-                if paid_media_items:
-                    await context.bot.send_paid_media(
-                        chat_id=chat_id,
-                        star_count=content['price_stars'],
-                        media=paid_media_items,
-                        caption=final_caption,
-                        parse_mode='Markdown'
-                    )
+                # Obtener el grupo completo de la base de datos
+                group_data = content_bot.get_media_group_by_id(content['id'])
+                if group_data and group_data.get('files'):
+                    files = group_data['files']
+                    
+                    # Convertir a InputPaidMedia*
+                    paid_media_items = []
+                    for file_data in files:
+                        if file_data['type'] == 'photo':
+                            paid_media_items.append(InputPaidMediaPhoto(media=file_data['file_id']))
+                        elif file_data['type'] == 'video':
+                            paid_media_items.append(InputPaidMediaVideo(media=file_data['file_id']))
+                    
+                    if paid_media_items:
+                        await context.bot.send_paid_media(
+                            chat_id=chat_id,
+                            star_count=content['price_stars'],
+                            media=paid_media_items,
+                            caption=caption,  # Ya viene traducido y limpio
+                            parse_mode='Markdown'
+                        )
+                else:
+                    raise Exception("No se encontraron archivos en el grupo")
             except Exception as e:
                 logger.error(f"Error enviando grupo de medios pagado: {e}")
                 # Fallback a mensaje de texto
