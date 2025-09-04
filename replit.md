@@ -32,11 +32,13 @@ Bot de Telegram que simula la experiencia de un canal tradicional operando compl
 ## Funcionalidades Implementadas
 
 ### Para Usuarios
-- /start: Bienvenida y registro automático
+- /start: Bienvenida y registro automático **con selección de idioma**
 - /catalogo: Ver contenido disponible con precios
 - /ayuda: Información de ayuda
+- **/idioma: Cambiar idioma entre español e inglés**
 - Sistema de compra con estrellas de Telegram
 - Acceso a contenido comprado o gratuito
+- **Sistema multiidioma completo (Español/Inglés)**
 
 ### Para Administrador
 - /admin: Panel de administración

@@ -47,6 +47,139 @@ DATABASE_NAME = 'bot_content.db'
 media_groups = defaultdict(list)
 pending_groups = {}
 
+# Diccionario de traducciones
+TRANSLATIONS = {
+    'es': {
+        # Mensajes principales
+        'welcome_select_language': '🌐 **¡Bienvenido!**\n\n¿En qué idioma prefieres usar el bot?',
+        'language_selected': '✅ **Idioma configurado**\n\n¡Perfecto! Ahora usarás el bot en español.',
+        'channel_empty': '💭 Este canal aún no tiene contenido publicado.',
+        'content_unlocked': '✅ ¡Contenido desbloqueado!',
+        'purchase_successful': '🎉 **¡Compra exitosa!**\n\nGracias por tu compra. El contenido ha sido desbloqueado.',
+        'insufficient_stars': '❌ No tienes suficientes estrellas para esta compra.',
+        'purchase_cancelled': '❌ Compra cancelada.',
+        
+        # Panel de administración
+        'admin_panel': '🔧 **Panel de Administración**\n\nSelecciona una opción:',
+        'content_published': '✅ **¡Contenido publicado!**',
+        'content_sent_to_all': '📡 **Enviando a todos los usuarios...**',
+        'upload_cancelled': '❌ **Subida cancelada**\n\nEl archivo no se ha publicado.',
+        'missing_description': '❌ Falta descripción',
+        'error_publishing': '❌ Error al publicar',
+        
+        # Botones principales
+        'btn_spanish': '🇪🇸 Español',
+        'btn_english': '🇺🇸 English',
+        'btn_admin_panel': '🔧 Panel de Administración',
+        'btn_add_content': '➕ Subir Contenido',
+        'btn_manage_content': '📋 Gestionar Contenido',
+        'btn_stats': '📊 Estadísticas',
+        'btn_settings': '⚙️ Configuración',
+        'btn_help': '❓ Ayuda',
+        'btn_change_language': '🌐 Cambiar Idioma',
+        
+        # Configuración de contenido
+        'setup_description': '📝 **Configurar Descripción**\n\nEnvía la descripción para tu contenido:',
+        'setup_price': '💰 **Establecer Precio**\n\nSelecciona el precio en estrellas para tu contenido:',
+        'custom_price': '💰 **Precio Personalizado**\n\nEnvía el número de estrellas (ejemplo: 75):',
+        'btn_free': 'Gratuito (0 ⭐)',
+        'btn_custom_price': '💰 Precio personalizado',
+        'btn_publish': '✅ Publicar Contenido',
+        'btn_cancel': '❌ Cancelar',
+        
+        # Comandos y ayuda
+        'help_message': '''📋 **Comandos Disponibles:**
+
+🎬 *Para usuarios:*
+/start - Mensaje de bienvenida
+/catalogo - Ver contenido disponible
+/ayuda - Esta ayuda
+/idioma - Cambiar idioma
+
+💫 *Sobre las estrellas:*
+• Las estrellas ⭐ son la moneda oficial de Telegram
+• Se compran directamente en Telegram
+• Permiten acceder a contenido premium
+
+❓ *¿Necesitas ayuda?*
+Si tienes problemas, contacta al administrador del canal.''',
+        
+        # Tipos de archivo
+        'photo_type': '📷 Foto',
+        'video_type': '🎥 Video',
+        'document_type': '📄 Documento',
+        'content_type': '📁 Contenido'
+    },
+    
+    'en': {
+        # Main messages
+        'welcome_select_language': '🌐 **Welcome!**\n\nWhich language would you prefer to use the bot in?',
+        'language_selected': '✅ **Language configured**\n\nPerfect! Now you\'ll use the bot in English.',
+        'channel_empty': '💭 This channel doesn\'t have any published content yet.',
+        'content_unlocked': '✅ Content unlocked!',
+        'purchase_successful': '🎉 **Purchase successful!**\n\nThank you for your purchase. The content has been unlocked.',
+        'insufficient_stars': '❌ You don\'t have enough stars for this purchase.',
+        'purchase_cancelled': '❌ Purchase cancelled.',
+        
+        # Admin panel
+        'admin_panel': '🔧 **Administration Panel**\n\nSelect an option:',
+        'content_published': '✅ **Content published!**',
+        'content_sent_to_all': '📡 **Sending to all users...**',
+        'upload_cancelled': '❌ **Upload cancelled**\n\nThe file has not been published.',
+        'missing_description': '❌ Missing description',
+        'error_publishing': '❌ Publishing error',
+        
+        # Main buttons
+        'btn_spanish': '🇪🇸 Español',
+        'btn_english': '🇺🇸 English',
+        'btn_admin_panel': '🔧 Admin Panel',
+        'btn_add_content': '➕ Upload Content',
+        'btn_manage_content': '📋 Manage Content',
+        'btn_stats': '📊 Statistics',
+        'btn_settings': '⚙️ Settings',
+        'btn_help': '❓ Help',
+        'btn_change_language': '🌐 Change Language',
+        
+        # Content setup
+        'setup_description': '📝 **Setup Description**\n\nSend the description for your content:',
+        'setup_price': '💰 **Set Price**\n\nSelect the price in stars for your content:',
+        'custom_price': '💰 **Custom Price**\n\nSend the number of stars (example: 75):',
+        'btn_free': 'Free (0 ⭐)',
+        'btn_custom_price': '💰 Custom price',
+        'btn_publish': '✅ Publish Content',
+        'btn_cancel': '❌ Cancel',
+        
+        # Commands and help
+        'help_message': '''📋 **Available Commands:**
+
+🎬 *For users:*
+/start - Welcome message
+/catalogo - View available content
+/ayuda - This help
+/idioma - Change language
+
+💫 *About stars:*
+• Stars ⭐ are Telegram's official currency
+• Bought directly in Telegram
+• Allow access to premium content
+
+❓ *Need help?*
+If you have problems, contact the channel administrator.''',
+        
+        # File types
+        'photo_type': '📷 Photo',
+        'video_type': '🎥 Video',
+        'document_type': '📄 Document',
+        'content_type': '📁 Content'
+    }
+}
+
+# Función auxiliar para obtener textos traducidos
+def get_text(user_id: int, key: str) -> str:
+    """Obtiene texto traducido para el usuario"""
+    language = content_bot.get_user_language(user_id) if content_bot else 'es'
+    return TRANSLATIONS.get(language, TRANSLATIONS['es']).get(key, f"[Missing: {key}]")
+
 class ContentBot:
     def __init__(self):
         self.init_database()
@@ -105,6 +238,16 @@ class ContentBot:
         )
         ''')
         
+        # Tabla de preferencias de usuario (para idiomas)
+        cursor.execute('''
+        CREATE TABLE IF NOT EXISTS user_preferences (
+            user_id INTEGER PRIMARY KEY,
+            language TEXT DEFAULT 'es',
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users (user_id)
+        )
+        ''')
+        
         # Insertar mensaje de ayuda predeterminado si no existe
         cursor.execute('''
         INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)
@@ -144,6 +287,41 @@ Si tienes problemas, contacta al administrador del canal.'''))
         
         conn.commit()
         conn.close()
+    
+    def get_user_language(self, user_id: int) -> str:
+        """Obtiene el idioma preferido del usuario"""
+        conn = sqlite3.connect(DATABASE_NAME)
+        cursor = conn.cursor()
+        
+        cursor.execute('SELECT language FROM user_preferences WHERE user_id = ?', (user_id,))
+        result = cursor.fetchone()
+        
+        conn.close()
+        return result[0] if result else 'es'  # Español por defecto
+    
+    def set_user_language(self, user_id: int, language: str):
+        """Establece el idioma preferido del usuario"""
+        conn = sqlite3.connect(DATABASE_NAME)
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+        INSERT OR REPLACE INTO user_preferences (user_id, language)
+        VALUES (?, ?)
+        ''', (user_id, language))
+        
+        conn.commit()
+        conn.close()
+    
+    def has_user_language(self, user_id: int) -> bool:
+        """Verifica si el usuario ya tiene idioma configurado"""
+        conn = sqlite3.connect(DATABASE_NAME)
+        cursor = conn.cursor()
+        
+        cursor.execute('SELECT 1 FROM user_preferences WHERE user_id = ?', (user_id,))
+        result = cursor.fetchone()
+        
+        conn.close()
+        return result is not None
 
     def get_content_list(self, user_id: Optional[int] = None) -> List[Dict]:
         """Obtiene la lista de contenido disponible"""
@@ -546,7 +724,8 @@ async def send_all_posts(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not content_list:
         # Si no hay contenido, enviar mensaje discreto solo si hay mensaje original
         if update.message:
-            await update.message.reply_text("💭 Este canal aún no tiene contenido publicado.")
+            text = get_text(user_id, 'channel_empty')
+            await update.message.reply_text(text)
         return
     
     # Enviar cada publicación como si fuera un post de canal
@@ -728,7 +907,7 @@ async def send_channel_post(update: Update, context: ContextTypes.DEFAULT_TYPE, 
 content_bot = ContentBot()
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Comando /start - Simula la experiencia de un canal"""
+    """Comando /start - Simula la experiencia de un canal con selección de idioma"""
     user = update.effective_user
     if not user or not update.message:
         return
@@ -738,8 +917,25 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         user.id, user.username or '', user.first_name or '', user.last_name or ''
     )
     
-    # Enviar todas las publicaciones automáticamente (como un canal)
-    await send_all_posts(update, context)
+    # Verificar si ya tiene idioma configurado
+    if not content_bot.has_user_language(user.id):
+        # Mostrar selección de idioma
+        keyboard = [
+            [InlineKeyboardButton("🇪🇸 Español", callback_data="set_language_es")],
+            [InlineKeyboardButton("🇺🇸 English", callback_data="set_language_en")]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        await update.message.reply_text(
+            "🌐 **¡Bienvenido! / Welcome!**\n\n"
+            "¿En qué idioma prefieres usar el bot?\n"
+            "Which language would you prefer to use the bot in?",
+            reply_markup=reply_markup,
+            parse_mode='Markdown'
+        )
+    else:
+        # Ya tiene idioma, enviar publicaciones directamente
+        await send_all_posts(update, context)
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Comando /ayuda"""
@@ -763,6 +959,25 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 Si tienes problemas, contacta al administrador del canal.''')
     
     await update.message.reply_text(help_text, parse_mode='Markdown')
+
+async def language_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Comando /idioma - Cambiar idioma"""
+    if not update.message or not update.effective_user:
+        return
+        
+    keyboard = [
+        [InlineKeyboardButton("🇪🇸 Español", callback_data="set_language_es")],
+        [InlineKeyboardButton("🇺🇸 English", callback_data="set_language_en")]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    
+    await update.message.reply_text(
+        "🌐 **Cambiar idioma / Change language**\n\n"
+        "Selecciona tu idioma preferido:\n"
+        "Select your preferred language:",
+        reply_markup=reply_markup,
+        parse_mode='Markdown'
+    )
 
 async def catalog_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Comando /catalogo"""
@@ -875,6 +1090,86 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     user_id = query.from_user.id
     data = query.data
+    
+    # === CALLBACKS DE SELECCIÓN DE IDIOMA ===
+    if data.startswith("set_language_"):
+        language = data.split("_")[2]  # 'es' or 'en'
+        content_bot.set_user_language(user_id, language)
+        
+        # Mensaje de confirmación traducido
+        if language == 'es':
+            text = "✅ **Idioma configurado**\n\n¡Perfecto! Ahora usarás el bot en español."
+        else:
+            text = "✅ **Language configured**\n\nPerfect! Now you'll use the bot in English."
+        
+        await query.edit_message_text(text, parse_mode='Markdown')
+        
+        # Esperar un momento y enviar todas las publicaciones
+        import asyncio
+        await asyncio.sleep(1)
+        await send_all_posts_callback(query, context, user_id)
+        return
+
+# Función auxiliar para enviar posts desde callback
+async def send_all_posts_callback(query, context: ContextTypes.DEFAULT_TYPE, user_id: int):
+    """Envía todas las publicaciones desde un callback"""
+    content_list = content_bot.get_content_list()
+    
+    if not content_list:
+        text = get_text(user_id, 'channel_empty')
+        await context.bot.send_message(chat_id=user_id, text=text)
+        return
+    
+    # Enviar cada publicación
+    for content in content_list:
+        await send_channel_post_from_callback(query, context, content, user_id)
+        # Pequeña pausa entre posts
+        import asyncio
+        await asyncio.sleep(0.5)
+
+# Función auxiliar para enviar posts desde callback (simplificada)  
+async def send_channel_post_from_callback(query, context: ContextTypes.DEFAULT_TYPE, content: Dict, user_id: int):
+    """Versión simplificada de send_channel_post para callbacks"""
+    # Por ahora redirigimos al método principal creando un update simulado
+    from telegram import Update
+    
+    # Crear un update simulado para usar send_channel_post
+    fake_update = type('FakeUpdate', (), {
+        'effective_chat': type('FakeChat', (), {'id': user_id})(),
+        'effective_user': type('FakeUser', (), {'id': user_id})()
+    })()
+    
+    await send_channel_post(fake_update, context, content, user_id)
+
+async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Manejador de callbacks de botones inline"""
+    query = update.callback_query
+    if not query or not query.from_user or not query.data:
+        return
+        
+    await query.answer()
+    
+    user_id = query.from_user.id
+    data = query.data
+    
+    # === CALLBACKS DE SELECCIÓN DE IDIOMA ===
+    if data.startswith("set_language_"):
+        language = data.split("_")[2]  # 'es' or 'en'
+        content_bot.set_user_language(user_id, language)
+        
+        # Mensaje de confirmación traducido
+        if language == 'es':
+            text = "✅ **Idioma configurado**\n\n¡Perfecto! Ahora usarás el bot en español."
+        else:
+            text = "✅ **Language configured**\n\nPerfect! Now you'll use the bot in English."
+        
+        await query.edit_message_text(text, parse_mode='Markdown')
+        
+        # Esperar un momento y enviar todas las publicaciones
+        import asyncio
+        await asyncio.sleep(1)
+        await send_all_posts_callback(query, context, user_id)
+        return
     
     if data.startswith("unlock_"):
         content_id = int(data.split("_")[1])
@@ -2419,7 +2714,8 @@ def main():
         # Comandos para usuarios normales (menú básico)
         user_commands = [
             BotCommand("start", "🏠 Ver contenido del canal"),
-            BotCommand("ayuda", "❓ Obtener ayuda")
+            BotCommand("ayuda", "❓ Obtener ayuda"),
+            BotCommand("idioma", "🌐 Cambiar idioma")
         ]
         
         # Comandos para administrador (menú simplificado)
@@ -2444,6 +2740,7 @@ def main():
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("catalogo", catalog_command))
     application.add_handler(CommandHandler("ayuda", help_command))
+    application.add_handler(CommandHandler("idioma", language_command))
     
     # Comandos de administración (ocultos para usuarios normales)
     application.add_handler(CommandHandler("admin", admin_command))
