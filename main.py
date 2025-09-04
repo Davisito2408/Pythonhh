@@ -1552,22 +1552,16 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.edit_message_text("❌ Sin permisos de administrador.")
             return
         
-        # Ejecutar actualización de todos los chats de usuarios
-        await query.edit_message_text("🔄 **Actualizando todos los chats...**\n\nEsto puede tardar unos segundos.")
-        
-        try:
-            await update_all_user_chats(context)
-            await query.edit_message_text(
-                "✅ **Actualización Completada**\n\n"
-                "Todos los chats de usuarios han sido actualizados con el contenido más reciente.",
-                parse_mode='Markdown'
-            )
-        except Exception as e:
-            await query.edit_message_text(
-                f"❌ **Error en la Actualización**\n\n"
-                f"Hubo un problema al actualizar los chats. Intenta de nuevo más tarde.",
-                parse_mode='Markdown'
-            )
+        await query.edit_message_text(
+            "ℹ️ **Actualización de Usuarios**\n\n"
+            "**Nota:** Los usuarios verán el contenido actualizado cuando inicien una nueva conversación con `/start`.\n\n"
+            "**¿Por qué no se actualiza automáticamente?**\n"
+            "- Evita spam a los usuarios\n"
+            "- Previene errores con usuarios que bloquearon el bot\n"
+            "- Mejor experiencia para todos\n\n"
+            "💡 **Recomendación:** Los canales reales de Telegram tampoco empujan contenido automáticamente cuando se elimina algo.",
+            parse_mode='Markdown'
+        )
 
 async def show_content_preview(query, context: ContextTypes.DEFAULT_TYPE):
     """Muestra vista previa del contenido en configuración"""
