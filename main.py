@@ -789,8 +789,7 @@ async def menu_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("🔧 Panel Admin", callback_data="quick_admin")],
         [InlineKeyboardButton("➕ Subir Contenido", callback_data="quick_upload"), 
          InlineKeyboardButton("📋 Gestionar", callback_data="admin_manage_content")],
-        [InlineKeyboardButton("📊 Estadísticas", callback_data="admin_stats")],
-        [InlineKeyboardButton("🗑️ Limpiar Chats Usuario", callback_data="clean_user_chats")]
+        [InlineKeyboardButton("📊 Estadísticas", callback_data="admin_stats")]
     ]
     
     reply_markup = InlineKeyboardMarkup(keyboard)
