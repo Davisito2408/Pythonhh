@@ -632,6 +632,22 @@ class ContentBot:
         except:
             pass
         try:
+            cursor.execute('ALTER TABLE content ADD COLUMN description_fr TEXT')
+        except:
+            pass
+        try:
+            cursor.execute('ALTER TABLE content ADD COLUMN description_pt TEXT')
+        except:
+            pass
+        try:
+            cursor.execute('ALTER TABLE content ADD COLUMN description_it TEXT')
+        except:
+            pass
+        try:
+            cursor.execute('ALTER TABLE content ADD COLUMN description_de TEXT')
+        except:
+            pass
+        try:
             cursor.execute('ALTER TABLE content ADD COLUMN original_language TEXT DEFAULT "es"')
         except:
             pass
@@ -785,7 +801,8 @@ Si tienes problemas, contacta al administrador del canal.'''))
         if user_id and not self.is_admin(user_id):
             # Solo contenido activo para usuarios normales
             cursor.execute('''
-            SELECT id, title, description, description_en, media_type, media_file_id, price_stars
+            SELECT id, title, description, description_en, description_fr, description_pt, 
+                   description_it, description_de, media_type, media_file_id, price_stars
             FROM content 
             WHERE is_active = 1
             ORDER BY created_at ASC
@@ -793,7 +810,8 @@ Si tienes problemas, contacta al administrador del canal.'''))
         else:
             # Todo el contenido para admin
             cursor.execute('''
-            SELECT id, title, description, description_en, media_type, media_file_id, price_stars, is_active
+            SELECT id, title, description, description_en, description_fr, description_pt, 
+                   description_it, description_de, media_type, media_file_id, price_stars, is_active
             FROM content 
             ORDER BY created_at ASC
             ''')
@@ -806,9 +824,13 @@ Si tienes problemas, contacta al administrador del canal.'''))
                     'title': row[1],
                     'description': row[2],
                     'description_en': row[3],
-                    'media_type': row[4],
-                    'media_file_id': row[5],
-                    'price_stars': row[6]
+                    'description_fr': row[4],
+                    'description_pt': row[5],
+                    'description_it': row[6],
+                    'description_de': row[7],
+                    'media_type': row[8],
+                    'media_file_id': row[9],
+                    'price_stars': row[10]
                 })
             else:
                 content.append({
@@ -816,10 +838,14 @@ Si tienes problemas, contacta al administrador del canal.'''))
                     'title': row[1],
                     'description': row[2],
                     'description_en': row[3],
-                    'media_type': row[4],
-                    'media_file_id': row[5],
-                    'price_stars': row[6],
-                    'is_active': row[7]
+                    'description_fr': row[4],
+                    'description_pt': row[5],
+                    'description_it': row[6],
+                    'description_de': row[7],
+                    'media_type': row[8],
+                    'media_file_id': row[9],
+                    'price_stars': row[10],
+                    'is_active': row[11]
                 })
         
         conn.close()
@@ -832,13 +858,20 @@ Si tienes problemas, contacta al administrador del canal.'''))
         cursor = conn.cursor()
         
         try:
-            # Traducir descripción automáticamente
+            # Traducir descripción automáticamente a TODOS los idiomas
             description_en = translate_text(description, 'en', 'es')
+            description_fr = translate_text(description, 'fr', 'es')
+            description_pt = translate_text(description, 'pt', 'es')
+            description_it = translate_text(description, 'it', 'es')
+            description_de = translate_text(description, 'de', 'es')
             
             cursor.execute('''
-            INSERT INTO content (title, description, description_en, original_language, media_type, media_file_id, price_stars)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-            ''', (title, description, description_en, 'es', media_type, media_file_id, price_stars))
+            INSERT INTO content (title, description, description_en, description_fr, 
+                               description_pt, description_it, description_de, original_language, 
+                               media_type, media_file_id, price_stars)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (title, description, description_en, description_fr, description_pt, 
+                 description_it, description_de, 'es', media_type, media_file_id, price_stars))
             
             content_id = cursor.lastrowid
             conn.commit()
@@ -898,7 +931,8 @@ Si tienes problemas, contacta al administrador del canal.'''))
         cursor = conn.cursor()
         
         cursor.execute('''
-        SELECT id, title, description, description_en, media_type, media_file_id, price_stars
+        SELECT id, title, description, description_en, description_fr, description_pt, 
+               description_it, description_de, media_type, media_file_id, price_stars
         FROM content 
         WHERE id = ? AND is_active = 1
         ''', (content_id,))
@@ -912,9 +946,13 @@ Si tienes problemas, contacta al administrador del canal.'''))
                 'title': row[1],
                 'description': row[2],
                 'description_en': row[3],
-                'media_type': row[4],
-                'media_file_id': row[5],
-                'price_stars': row[6]
+                'description_fr': row[4],
+                'description_pt': row[5],
+                'description_it': row[6],
+                'description_de': row[7],
+                'media_type': row[8],
+                'media_file_id': row[9],
+                'price_stars': row[10]
             }
         return None
     
