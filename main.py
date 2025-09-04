@@ -561,7 +561,17 @@ async def send_channel_post(update: Update, context: ContextTypes.DEFAULT_TYPE, 
     chat_id = update.effective_chat.id if update.effective_chat else user_id
     
     # Formatear el caption como un canal premium
-    caption = f"**{content['title']}**\n\n{content['description']}"
+    # Para media_group, extraer la descripción real del JSON
+    if content['media_type'] == 'media_group':
+        import json
+        try:
+            group_info = json.loads(content['description'])
+            real_description = group_info.get('description', '')
+            caption = f"**{content['title']}**\n\n{real_description}"
+        except:
+            caption = f"**{content['title']}**\n\nContenido multimedia"
+    else:
+        caption = f"**{content['title']}**\n\n{content['description']}"
     
     # Verificar si el usuario ya compró el contenido
     has_purchased = content_bot.has_purchased_content(user_id, content['id'])
@@ -601,11 +611,8 @@ async def send_channel_post(update: Update, context: ContextTypes.DEFAULT_TYPE, 
                 # Convertir a InputMedia*
                 media_items = []
                 for i, file_data in enumerate(files):
-                    # Solo el primer archivo lleva caption con la descripción real del grupo
-                    if i == 0:
-                        caption_text = f"**{content['title']}**\n\n{group_description}"
-                    else:
-                        caption_text = None
+                    # Solo el primer archivo lleva caption (ya procesado arriba)
+                    caption_text = caption if i == 0 else None
                     if file_data['type'] == 'photo':
                         media_items.append(InputMediaPhoto(
                             media=file_data['file_id'],
