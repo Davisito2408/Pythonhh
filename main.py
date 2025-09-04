@@ -1635,55 +1635,86 @@ async def send_channel_post(update: Update, context: ContextTypes.DEFAULT_TYPE, 
     else:
         # Contenido de pago - usar funcionalidad nativa de Telegram
         if content['media_type'] == 'photo':
+            # Verificar que el file_id sea válido
+            file_id = content['media_file_id']
+            if not file_id or len(file_id) < 10:
+                logger.error(f"File ID inválido para foto: {file_id}")
+                # Enviar mensaje indicando problema con el archivo
+                await context.bot.send_message(
+                    chat_id=chat_id,
+                    text=f"📷 **{escape_markdown(content['title'])}**\n\n{caption}\n\n⚠️ _Archivo no disponible_",
+                    parse_mode='Markdown'
+                )
+                return
+            
             try:
                 # Usar send_paid_media nativo para fotos
-                paid_media = [InputPaidMediaPhoto(media=content['media_file_id'])]
+                paid_media = [InputPaidMediaPhoto(media=file_id)]
                 await context.bot.send_paid_media(
                     chat_id=chat_id,
                     star_count=content['price_stars'],
                     media=paid_media,
-                    caption=escape_markdown(caption),
+                    caption=escape_markdown(caption) if caption else "",
                     parse_mode='Markdown'
                 )
+                logger.info(f"Foto pagada enviada exitosamente a {chat_id}")
             except Exception as e:
-                logger.error(f"Error enviando foto pagada: {e}")
-                # Fallback a mensaje con botón
-                keyboard = [[InlineKeyboardButton(
-                    f"🔓 Desbloquear por {content['price_stars']} ⭐",
-                    callback_data=f"unlock_{content['id']}"
-                )]]
-                reply_markup = InlineKeyboardMarkup(keyboard)
+                logger.error(f"Error enviando foto pagada: {e} - File ID: {file_id}")
+                # Si falla el paid media, intentar enviar como foto normal con mensaje de pago
+                try:
+                    await context.bot.send_photo(
+                        chat_id=chat_id,
+                        photo=file_id,
+                        caption=f"🔒 **Contenido Premium**\n\n{caption}\n\n💰 Precio: {content['price_stars']} ⭐\n\n_Contáctanos para desbloquear_",
+                        parse_mode='Markdown'
+                    )
+                except Exception as e2:
+                    logger.error(f"Error enviando foto normal: {e2}")
+                    await context.bot.send_message(
+                        chat_id=chat_id,
+                        text=f"📷 **{escape_markdown(content['title'])}**\n\n{caption}\n\n⚠️ _Error al cargar imagen_",
+                        parse_mode='Markdown'
+                    )
+        elif content['media_type'] == 'video':
+            # Verificar que el file_id sea válido
+            file_id = content['media_file_id']
+            if not file_id or len(file_id) < 10:
+                logger.error(f"File ID inválido para video: {file_id}")
                 await context.bot.send_message(
                     chat_id=chat_id,
-                    text=f"🔒 **{escape_markdown(content['title'])}**\n\n{caption}\n\n💰 {content['price_stars']} estrellas",
-                    parse_mode='Markdown',
-                    reply_markup=reply_markup
+                    text=f"🎥 **{escape_markdown(content['title'])}**\n\n{caption}\n\n⚠️ _Video no disponible_",
+                    parse_mode='Markdown'
                 )
-        elif content['media_type'] == 'video':
+                return
+            
             try:
                 # Usar send_paid_media nativo para videos
-                paid_media = [InputPaidMediaVideo(media=content['media_file_id'])]
+                paid_media = [InputPaidMediaVideo(media=file_id)]
                 await context.bot.send_paid_media(
                     chat_id=chat_id,
                     star_count=content['price_stars'],
                     media=paid_media,
-                    caption=escape_markdown(caption),
+                    caption=escape_markdown(caption) if caption else "",
                     parse_mode='Markdown'
                 )
+                logger.info(f"Video pagado enviado exitosamente a {chat_id}")
             except Exception as e:
-                logger.error(f"Error enviando video pagado: {e}")
-                # Fallback a mensaje con botón
-                keyboard = [[InlineKeyboardButton(
-                    f"🔓 Desbloquear por {content['price_stars']} ⭐",
-                    callback_data=f"unlock_{content['id']}"
-                )]]
-                reply_markup = InlineKeyboardMarkup(keyboard)
-                await context.bot.send_message(
-                    chat_id=chat_id,
-                    text=f"🔒 **{escape_markdown(content['title'])}**\n\n{caption}\n\n💰 {content['price_stars']} estrellas",
-                    parse_mode='Markdown',
-                    reply_markup=reply_markup
-                )
+                logger.error(f"Error enviando video pagado: {e} - File ID: {file_id}")
+                # Si falla el paid media, intentar enviar como video normal con mensaje de pago
+                try:
+                    await context.bot.send_video(
+                        chat_id=chat_id,
+                        video=file_id,
+                        caption=f"🔒 **Contenido Premium**\n\n{caption}\n\n💰 Precio: {content['price_stars']} ⭐\n\n_Contáctanos para desbloquear_",
+                        parse_mode='Markdown'
+                    )
+                except Exception as e2:
+                    logger.error(f"Error enviando video normal: {e2}")
+                    await context.bot.send_message(
+                        chat_id=chat_id,
+                        text=f"🎥 **{escape_markdown(content['title'])}**\n\n{caption}\n\n⚠️ _Error al cargar video_",
+                        parse_mode='Markdown'
+                    )
         elif content['media_type'] == 'media_group':
             # Para grupos de medios pagados - necesitamos obtener los archivos del JSON original
             try:
@@ -1706,23 +1737,40 @@ async def send_channel_post(update: Update, context: ContextTypes.DEFAULT_TYPE, 
                                 chat_id=chat_id,
                                 star_count=content['price_stars'],
                                 media=paid_media_items,
-                                caption=escape_markdown(caption),  # Ya viene traducido y limpio
+                                caption=escape_markdown(caption) if caption else "",
                                 parse_mode='Markdown'
                             )
+                            logger.info(f"Grupo de medios pagado enviado exitosamente a {chat_id}")
                         except Exception as e:
-                            logger.error(f"Error enviando grupo pagado: {e}")
-                            # Fallback a mensaje con botón
-                            keyboard = [[InlineKeyboardButton(
-                                f"🔓 Desbloquear por {content['price_stars']} ⭐",
-                                callback_data=f"unlock_{content['id']}"
-                            )]]
-                            reply_markup = InlineKeyboardMarkup(keyboard)
-                            await context.bot.send_message(
-                                chat_id=chat_id,
-                                text=f"🔒 **{escape_markdown(content['title'])}**\n\n{caption}\n\n💰 {content['price_stars']} estrellas",
-                                parse_mode='Markdown',
-                                reply_markup=reply_markup
-                            )
+                            logger.error(f"Error enviando grupo pagado: {e} - Intentando alternativa")
+                            # Fallback: enviar archivos individuales como contenido premium
+                            try:
+                                for i, file_data in enumerate(files):
+                                    if file_data['type'] == 'photo':
+                                        cap = f"🔒 **Contenido Premium** ({i+1}/{len(files)})\n\n{caption}\n\n💰 Precio: {content['price_stars']} ⭐" if i == 0 else None
+                                        await context.bot.send_photo(
+                                            chat_id=chat_id,
+                                            photo=file_data['file_id'],
+                                            caption=cap,
+                                            parse_mode='Markdown'
+                                        )
+                                    elif file_data['type'] == 'video':
+                                        cap = f"🔒 **Contenido Premium** ({i+1}/{len(files)})\n\n{caption}\n\n💰 Precio: {content['price_stars']} ⭐" if i == 0 else None
+                                        await context.bot.send_video(
+                                            chat_id=chat_id,
+                                            video=file_data['file_id'],
+                                            caption=cap,
+                                            parse_mode='Markdown'
+                                        )
+                                    # Pausa entre archivos
+                                    await asyncio.sleep(0.3)
+                            except Exception as e2:
+                                logger.error(f"Error enviando archivos individuales: {e2}")
+                                await context.bot.send_message(
+                                    chat_id=chat_id,
+                                    text=f"💼 **{escape_markdown(content['title'])}**\n\n{caption}\n\n⚠️ _Error al cargar grupo de medios_",
+                                    parse_mode='Markdown'
+                                )
                 else:
                     raise Exception("No se encontraron archivos en el grupo")
             except Exception as e:
