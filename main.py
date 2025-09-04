@@ -1757,7 +1757,10 @@ async def language_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("🇫🇷 Français", callback_data="set_language_fr"), 
          InlineKeyboardButton("🇧🇷 Português", callback_data="set_language_pt")],
         [InlineKeyboardButton("🇮🇹 Italiano", callback_data="set_language_it"), 
-         InlineKeyboardButton("🇩🇪 Deutsch", callback_data="set_language_de")]
+         InlineKeyboardButton("🇩🇪 Deutsch", callback_data="set_language_de")],
+        [InlineKeyboardButton("🇷🇺 Русский", callback_data="set_language_ru"), 
+         InlineKeyboardButton("🇮🇳 हिन्दी", callback_data="set_language_hi")],
+        [InlineKeyboardButton("🇸🇦 العربية", callback_data="set_language_ar")]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     
