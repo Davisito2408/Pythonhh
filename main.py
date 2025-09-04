@@ -1385,13 +1385,11 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         content_id = int(data.split("_")[2])
         
         # Ejecutar eliminación
-        if content_bot.delete_content(content_id):
-            # Enviar nueva versión del canal a todos los usuarios (sin notificación)
-            await update_all_user_chats(context)
-            
+        if content_bot.delete_content(content_id):            
             await query.edit_message_text(
                 f"✅ **Contenido eliminado exitosamente**\n\n"
-                f"El contenido ha sido eliminado y los chats de usuarios han sido actualizados silenciosamente.",
+                f"El contenido ha sido eliminado permanentemente de la base de datos.\n\n"
+                f"💡 **Nota:** Los usuarios verán el contenido actualizado cuando inicien una nueva conversación.",
                 parse_mode='Markdown'
             )
         else:
