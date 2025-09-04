@@ -2277,12 +2277,9 @@ def main():
             BotCommand("ayuda", "❓ Obtener ayuda")
         ]
         
-        # Comandos para administrador (menú completo)
+        # Comandos para administrador (menú simplificado)
         admin_commands = [
             BotCommand("start", "🏠 Ver contenido del canal"),
-            BotCommand("catalogo", "📋 Ver catálogo disponible"),
-            BotCommand("ayuda", "❓ Obtener ayuda"),
-            BotCommand("admin", "🔧 Panel de administración"),
             BotCommand("menu", "📱 Menú de comandos completo")
         ]
         
