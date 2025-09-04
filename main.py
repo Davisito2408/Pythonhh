@@ -665,7 +665,8 @@ async def send_channel_post(update: Update, context: ContextTypes.DEFAULT_TYPE, 
                 group_info = json.loads(content['description'])
                 files = group_info.get('files', [])
                 group_description = group_info.get('description', '')
-                group_caption = f"**{content['title']}**\n\n{group_description}"
+                # Usar caption existente con título + descripción del grupo
+                final_caption = f"**{content['title']}**\n\n{group_description}"
                 
                 # Convertir a InputPaidMedia*
                 paid_media_items = []
@@ -680,7 +681,7 @@ async def send_channel_post(update: Update, context: ContextTypes.DEFAULT_TYPE, 
                         chat_id=chat_id,
                         star_count=content['price_stars'],
                         media=paid_media_items,
-                        caption=group_caption,
+                        caption=final_caption,
                         parse_mode='Markdown'
                     )
             except Exception as e:
