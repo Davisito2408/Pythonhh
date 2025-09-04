@@ -180,6 +180,68 @@ def get_text(user_id: int, key: str) -> str:
     language = content_bot.get_user_language(user_id) if content_bot else 'es'
     return TRANSLATIONS.get(language, TRANSLATIONS['es']).get(key, f"[Missing: {key}]")
 
+# Función simple de traducción usando transformación básica
+def translate_text(text: str, target_language: str, source_language: str = 'es') -> str:
+    """Traduce texto usando transformaciones básicas (expandible con IA)"""
+    if source_language == target_language:
+        return text
+    
+    # Diccionario básico de traducciones comunes para mejorar calidad
+    common_translations = {
+        'es_to_en': {
+            # Palabras comunes en descripciones
+            'foto': 'photo',
+            'imagen': 'image', 
+            'video': 'video',
+            'contenido': 'content',
+            'exclusivo': 'exclusive',
+            'premium': 'premium',
+            'gratis': 'free',
+            'nuevo': 'new',
+            'especial': 'special',
+            'único': 'unique',
+            'increíble': 'amazing',
+            'hermoso': 'beautiful',
+            'calidad': 'quality',
+            'alta calidad': 'high quality',
+            'colección': 'collection',
+            'serie': 'series',
+            'pack': 'pack',
+            'bundle': 'bundle'
+        },
+        'en_to_es': {
+            'photo': 'foto',
+            'image': 'imagen',
+            'video': 'video', 
+            'content': 'contenido',
+            'exclusive': 'exclusivo',
+            'premium': 'premium',
+            'free': 'gratis',
+            'new': 'nuevo',
+            'special': 'especial',
+            'unique': 'único',
+            'amazing': 'increíble',
+            'beautiful': 'hermoso',
+            'quality': 'calidad',
+            'high quality': 'alta calidad',
+            'collection': 'colección',
+            'series': 'serie',
+            'pack': 'pack',
+            'bundle': 'bundle'
+        }
+    }
+    
+    # Aplicar traducciones básicas
+    translation_key = f"{source_language}_to_{target_language}"
+    if translation_key in common_translations:
+        translated = text
+        for original, translation in common_translations[translation_key].items():
+            translated = translated.replace(original, translation)
+        return translated
+    
+    # Si no hay diccionario disponible, retornar texto original
+    return text
+
 class ContentBot:
     def __init__(self):
         self.init_database()
@@ -195,6 +257,8 @@ class ContentBot:
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             title TEXT NOT NULL,
             description TEXT,
+            description_en TEXT,
+            original_language TEXT DEFAULT 'es',
             media_type TEXT,
             media_file_id TEXT,
             price_stars INTEGER DEFAULT 0,
@@ -202,6 +266,16 @@ class ContentBot:
             is_active BOOLEAN DEFAULT 1
         )
         ''')
+        
+        # Agregar columnas a tabla existente si no existen
+        try:
+            cursor.execute('ALTER TABLE content ADD COLUMN description_en TEXT')
+        except:
+            pass
+        try:
+            cursor.execute('ALTER TABLE content ADD COLUMN original_language TEXT DEFAULT "es"')
+        except:
+            pass
         
         # Tabla de usuarios
         cursor.execute('''
@@ -265,6 +339,19 @@ class ContentBot:
 
 ❓ *¿Necesitas ayuda?*
 Si tienes problemas, contacta al administrador del canal.'''))
+        
+        # Actualizar contenido existente con traducciones si no las tienen
+        cursor.execute('SELECT id, description FROM content WHERE description_en IS NULL OR description_en = ""')
+        content_to_translate = cursor.fetchall()
+        
+        for content_id, description in content_to_translate:
+            if description:
+                translated_description = translate_text(description, 'en', 'es')
+                cursor.execute('UPDATE content SET description_en = ? WHERE id = ?', 
+                              (translated_description, content_id))
+        
+        if content_to_translate:
+            logger.info(f"Traducidas {len(content_to_translate)} descripciones de contenido existente")
         
         conn.commit()
         conn.close()
@@ -331,7 +418,7 @@ Si tienes problemas, contacta al administrador del canal.'''))
         if user_id and not self.is_admin(user_id):
             # Solo contenido activo para usuarios normales
             cursor.execute('''
-            SELECT id, title, description, media_type, media_file_id, price_stars
+            SELECT id, title, description, description_en, media_type, media_file_id, price_stars
             FROM content 
             WHERE is_active = 1
             ORDER BY created_at ASC
@@ -339,7 +426,7 @@ Si tienes problemas, contacta al administrador del canal.'''))
         else:
             # Todo el contenido para admin
             cursor.execute('''
-            SELECT id, title, description, media_type, media_file_id, price_stars, is_active
+            SELECT id, title, description, description_en, media_type, media_file_id, price_stars, is_active
             FROM content 
             ORDER BY created_at ASC
             ''')
@@ -351,19 +438,21 @@ Si tienes problemas, contacta al administrador del canal.'''))
                     'id': row[0],
                     'title': row[1],
                     'description': row[2],
-                    'media_type': row[3],
-                    'media_file_id': row[4],
-                    'price_stars': row[5]
+                    'description_en': row[3],
+                    'media_type': row[4],
+                    'media_file_id': row[5],
+                    'price_stars': row[6]
                 })
             else:
                 content.append({
                     'id': row[0],
                     'title': row[1],
                     'description': row[2],
-                    'media_type': row[3],
-                    'media_file_id': row[4],
-                    'price_stars': row[5],
-                    'is_active': row[6]
+                    'description_en': row[3],
+                    'media_type': row[4],
+                    'media_file_id': row[5],
+                    'price_stars': row[6],
+                    'is_active': row[7]
                 })
         
         conn.close()
@@ -376,10 +465,13 @@ Si tienes problemas, contacta al administrador del canal.'''))
         cursor = conn.cursor()
         
         try:
+            # Traducir descripción automáticamente
+            description_en = translate_text(description, 'en', 'es')
+            
             cursor.execute('''
-            INSERT INTO content (title, description, media_type, media_file_id, price_stars)
-            VALUES (?, ?, ?, ?, ?)
-            ''', (title, description, media_type, media_file_id, price_stars))
+            INSERT INTO content (title, description, description_en, original_language, media_type, media_file_id, price_stars)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            ''', (title, description, description_en, 'es', media_type, media_file_id, price_stars))
             
             content_id = cursor.lastrowid
             conn.commit()
@@ -439,7 +531,7 @@ Si tienes problemas, contacta al administrador del canal.'''))
         cursor = conn.cursor()
         
         cursor.execute('''
-        SELECT id, title, description, media_type, media_file_id, price_stars
+        SELECT id, title, description, description_en, media_type, media_file_id, price_stars
         FROM content 
         WHERE id = ? AND is_active = 1
         ''', (content_id,))
@@ -452,9 +544,10 @@ Si tienes problemas, contacta al administrador del canal.'''))
                 'id': row[0],
                 'title': row[1],
                 'description': row[2],
-                'media_type': row[3],
-                'media_file_id': row[4],
-                'price_stars': row[5]
+                'description_en': row[3],
+                'media_type': row[4],
+                'media_file_id': row[5],
+                'price_stars': row[6]
             }
         return None
     
@@ -739,8 +832,12 @@ async def send_channel_post(update: Update, context: ContextTypes.DEFAULT_TYPE, 
     """Envía una publicación individual como si fuera de un canal"""
     chat_id = update.effective_chat.id if update.effective_chat else user_id
     
-    # Formatear el caption solo con la descripción
-    caption = content['description']
+    # Obtener descripción en el idioma del usuario
+    user_language = content_bot.get_user_language(user_id)
+    if user_language == 'en' and content.get('description_en'):
+        caption = content['description_en']
+    else:
+        caption = content['description']
     
     # Verificar si el usuario ya compró el contenido
     has_purchased = content_bot.has_purchased_content(user_id, content['id'])
