@@ -1606,7 +1606,6 @@ async def show_group_preview(query, context: ContextTypes.DEFAULT_TYPE):
     doc_count = sum(1 for f in files if f['type'] == 'document')
     
     keyboard = [
-        [InlineKeyboardButton("✏️ Título del Grupo", callback_data="setup_group_title")],
         [InlineKeyboardButton("📝 Descripción del Grupo", callback_data="setup_group_description")],
         [InlineKeyboardButton("💰 Precio del Grupo", callback_data="setup_group_price")],
         [InlineKeyboardButton("✅ Publicar Grupo", callback_data="publish_group")],
@@ -1622,7 +1621,6 @@ async def show_group_preview(query, context: ContextTypes.DEFAULT_TYPE):
         f"🎬 **Videos:** {video_count}\n"
         f"📄 **Documentos:** {doc_count}\n\n"
         f"🔧 **Configuración actual:**\n"
-        f"✏️ Título: {title}\n"
         f"📝 Descripción: {description}\n"
         f"💰 Precio: {price_text}\n\n"
         f"Se publicará como un álbum con configuración única:"
@@ -2156,7 +2154,6 @@ async def process_media_group_final(update: Update, context: ContextTypes.DEFAUL
     doc_count = sum(1 for f in files if f['type'] == 'document')
     
     keyboard = [
-        [InlineKeyboardButton("✏️ Título del Grupo", callback_data="setup_group_title")],
         [InlineKeyboardButton("📝 Descripción del Grupo", callback_data="setup_group_description")],
         [InlineKeyboardButton("💰 Precio del Grupo", callback_data="setup_group_price")],
         [InlineKeyboardButton("✅ Publicar Grupo", callback_data="publish_group")],
