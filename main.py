@@ -561,17 +561,7 @@ async def send_channel_post(update: Update, context: ContextTypes.DEFAULT_TYPE, 
     chat_id = update.effective_chat.id if update.effective_chat else user_id
     
     # Formatear el caption como un canal premium
-    # Para media_group, extraer la descripción real del JSON
-    if content['media_type'] == 'media_group':
-        import json
-        try:
-            group_info = json.loads(content['description'])
-            real_description = group_info.get('description', '')
-            caption = f"**{content['title']}**\n\n{real_description}"
-        except:
-            caption = f"**{content['title']}**\n\nContenido multimedia"
-    else:
-        caption = f"**{content['title']}**\n\n{content['description']}"
+    caption = f"**{content['title']}**\n\n{content['description']}"
     
     # Verificar si el usuario ya compró el contenido
     has_purchased = content_bot.has_purchased_content(user_id, content['id'])
@@ -606,11 +596,13 @@ async def send_channel_post(update: Update, context: ContextTypes.DEFAULT_TYPE, 
                 # Deserializar los archivos del grupo
                 group_info = json.loads(content['description'])
                 files = group_info.get('files', [])
+                group_description = group_info.get('description', '')
+                group_caption = f"**{content['title']}**\n\n{group_description}"
                 
                 # Convertir a InputMedia*
                 media_items = []
                 for i, file_data in enumerate(files):
-                    caption_text = caption if i == 0 else None  # Solo primer archivo lleva caption
+                    caption_text = group_caption if i == 0 else None  # Solo primer archivo lleva caption
                     if file_data['type'] == 'photo':
                         media_items.append(InputMediaPhoto(
                             media=file_data['file_id'],
@@ -672,6 +664,9 @@ async def send_channel_post(update: Update, context: ContextTypes.DEFAULT_TYPE, 
                 # Deserializar los archivos del grupo
                 group_info = json.loads(content['description'])
                 files = group_info.get('files', [])
+                group_description = group_info.get('description', '')
+                # Usar caption existente con título + descripción del grupo
+                final_caption = f"**{content['title']}**\n\n{group_description}"
                 
                 # Convertir a InputPaidMedia*
                 paid_media_items = []
@@ -686,7 +681,7 @@ async def send_channel_post(update: Update, context: ContextTypes.DEFAULT_TYPE, 
                         chat_id=chat_id,
                         star_count=content['price_stars'],
                         media=paid_media_items,
-                        caption=caption,
+                        caption=final_caption,
                         parse_mode='Markdown'
                     )
             except Exception as e:
