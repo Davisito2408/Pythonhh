@@ -1939,13 +1939,25 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not user or not update.message:
         return
     
+    # Log para diagnosticar language_code original del dispositivo
+    device_lang = user.language_code
+    logger.info(f"🔍 DIAGNÓSTICO /start - Usuario {user.id}: device_language_code='{device_lang}'")
+    
     # Registrar usuario silenciosamente
     content_bot.register_user(
         user.id, user.username or '', user.first_name or '', user.last_name or ''
     )
     
     # Verificar si ya tiene idioma configurado
+    stored_lang = content_bot.get_user_language(user.id) if content_bot.has_user_language(user.id) else None
+    logger.info(f"🔍 STORED vs DEVICE - Usuario {user.id}: stored='{stored_lang}' device='{device_lang}'")
+    
     if not content_bot.has_user_language(user.id):
+        # Si no hay idioma guardado pero hay language_code del dispositivo, usar como hint
+        if device_lang:
+            base_device_lang = device_lang.split('-')[0].lower()
+            logger.info(f"🔍 HINT - Usuario {user.id}: dispositivo sugiere '{base_device_lang}'")
+        
         # Mostrar selección de idioma
         keyboard = [
             [InlineKeyboardButton("🇪🇸 Español", callback_data="set_language_es"), 
@@ -1969,6 +1981,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
     else:
         # Ya tiene idioma, enviar publicaciones directamente
+        logger.info(f"✅ Usuario {user.id} ya configurado con idioma '{stored_lang}', enviando contenido")
         await send_all_posts(update, context)
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -2144,7 +2157,14 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # === CALLBACKS DE SELECCIÓN DE IDIOMA ===
     if data.startswith("set_language_"):
         language = data.split("_")[2]  # 'es' or 'en'
+        
+        # Log para diagnosticar la selección manual vs dispositivo
+        user_obj = query.from_user
+        device_lang_callback = user_obj.language_code if user_obj else None
+        logger.info(f"🔍 SELECCIÓN MANUAL - Usuario {user_id}: seleccionó='{language}' dispositivo='{device_lang_callback}'")
+        
         content_bot.set_user_language(user_id, language)
+        logger.info(f"✅ Idioma guardado exitosamente para usuario {user_id}: '{language}'")
         
         # Mensaje de confirmación traducido
         language_messages = {
@@ -2219,7 +2239,14 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # === CALLBACKS DE SELECCIÓN DE IDIOMA ===
     if data.startswith("set_language_"):
         language = data.split("_")[2]  # 'es' or 'en'
+        
+        # Log para diagnosticar la selección manual vs dispositivo
+        user_obj = query.from_user
+        device_lang_callback = user_obj.language_code if user_obj else None
+        logger.info(f"🔍 SELECCIÓN MANUAL - Usuario {user_id}: seleccionó='{language}' dispositivo='{device_lang_callback}'")
+        
         content_bot.set_user_language(user_id, language)
+        logger.info(f"✅ Idioma guardado exitosamente para usuario {user_id}: '{language}'")
         
         # Mensaje de confirmación traducido
         language_messages = {
