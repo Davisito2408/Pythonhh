@@ -560,8 +560,18 @@ async def send_channel_post(update: Update, context: ContextTypes.DEFAULT_TYPE, 
     """Envía una publicación individual como si fuera de un canal"""
     chat_id = update.effective_chat.id if update.effective_chat else user_id
     
-    # Formatear el caption como un canal premium
-    caption = f"**{content['title']}**\n\n{content['description']}"
+    # Para grupos de medios, extraer la descripción real del JSON
+    if content['media_type'] == 'media_group':
+        import json
+        try:
+            group_info = json.loads(content['description'])
+            real_description = group_info.get('description', '')
+        except:
+            real_description = ''
+        caption = f"**{content['title']}**\n\n{real_description}"
+    else:
+        # Formatear el caption como un canal premium para otros tipos
+        caption = f"**{content['title']}**\n\n{content['description']}"
     
     # Verificar si el usuario ya compró el contenido
     has_purchased = content_bot.has_purchased_content(user_id, content['id'])
