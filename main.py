@@ -560,8 +560,8 @@ async def send_channel_post(update: Update, context: ContextTypes.DEFAULT_TYPE, 
     """Envía una publicación individual como si fuera de un canal"""
     chat_id = update.effective_chat.id if update.effective_chat else user_id
     
-    # Formatear el caption como un canal premium
-    caption = f"**{content['title']}**\n\n{content['description']}"
+    # Formatear el caption solo con la descripción
+    caption = content['description']
     
     # Verificar si el usuario ya compró el contenido
     has_purchased = content_bot.has_purchased_content(user_id, content['id'])
@@ -664,7 +664,7 @@ async def send_channel_post(update: Update, context: ContextTypes.DEFAULT_TYPE, 
                 group_info = json.loads(content['description'])
                 files = group_info.get('files', [])
                 # SIMPLIFICADO: solo título para sendPaidMedia también
-                final_caption = f"**{content['title']}**"
+                final_caption = content['description']
                 
                 # Convertir a InputPaidMedia*
                 paid_media_items = []
@@ -1079,10 +1079,21 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.answer("❌ Falta descripción", show_alert=True)
             return
         
+        # Crear título simple basado en el tipo de contenido
+        media_type = media_data['type']
+        if media_type == 'photo':
+            title = "📷 Foto"
+        elif media_type == 'video':
+            title = "🎥 Video"
+        elif media_type == 'document':
+            title = "📄 Documento"
+        else:
+            title = "📁 Contenido"
+        
         # Publicar contenido
         content_id = content_bot.add_content(
-            media_data['description'],  # Título ahora es la descripción
-            media_data['description'], 
+            title,  # Título simple
+            media_data['description'],  # Solo descripción
             media_data['type'],
             media_data['file_id'],
             media_data['price']
@@ -2351,7 +2362,7 @@ async def successful_payment(update: Update, context: ContextTypes.DEFAULT_TYPE)
         )
         
         # Reenviar el contenido sin spoiler
-        caption = f"**{content['title']}**\n\n{content['description']}"
+        caption = content['description']
         
         if content['media_type'] == 'photo':
             await context.bot.send_photo(
