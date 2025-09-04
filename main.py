@@ -74,6 +74,9 @@ TRANSLATIONS = {
         'btn_portuguese': '🇧🇷 Português',
         'btn_italian': '🇮🇹 Italiano',
         'btn_german': '🇩🇪 Deutsch',
+        'btn_russian': '🇷🇺 Русский',
+        'btn_hindi': '🇮🇳 हिन्दी',
+        'btn_arabic': '🇸🇦 العربية',
         'btn_admin_panel': '🔧 Panel de Administración',
         'btn_add_content': '➕ Subir Contenido',
         'btn_manage_content': '📋 Gestionar Contenido',
@@ -443,6 +446,213 @@ Bei Problemen wenden Sie sich an den Kanaladministrator.''',
         'video_type': '🎥 Video',
         'document_type': '📄 Dokument',
         'content_type': '📁 Inhalt'
+    },
+    
+    'ru': {
+        # Основные сообщения
+        'welcome_select_language': '🌐 **Добро пожаловать!**\n\nНа каком языке вы предпочитаете использовать бота?',
+        'language_selected': '✅ **Язык настроен**\n\nОтлично! Теперь вы будете использовать бота на русском языке.',
+        'channel_empty': '💭 В этом канале пока нет опубликованного контента.',
+        'content_unlocked': '✅ Контент разблокирован!',
+        'purchase_successful': '🎉 **Покупка успешна!**\n\nСпасибо за покупку. Контент был разблокирован.',
+        'insufficient_stars': '❌ У вас недостаточно звёзд для этой покупки.',
+        'purchase_cancelled': '❌ Покупка отменена.',
+        
+        # Панель администрирования
+        'admin_panel': '🔧 **Панель администрирования**\n\nВыберите опцию:',
+        'content_published': '✅ **Контент опубликован!**',
+        'content_sent_to_all': '📡 **Отправка всем пользователям...**',
+        'upload_cancelled': '❌ **Загрузка отменена**\n\nФайл не был опубликован.',
+        'missing_description': '❌ Отсутствует описание',
+        'error_publishing': '❌ Ошибка публикации',
+        
+        # Основные кнопки
+        'btn_spanish': '🇪🇸 Español',
+        'btn_english': '🇺🇸 English',
+        'btn_french': '🇫🇷 Français',
+        'btn_portuguese': '🇧🇷 Português',
+        'btn_italian': '🇮🇹 Italiano',
+        'btn_german': '🇩🇪 Deutsch',
+        'btn_russian': '🇷🇺 Русский',
+        'btn_hindi': '🇮🇳 हिन्दी',
+        'btn_arabic': '🇸🇦 العربية',
+        'btn_admin_panel': '🔧 Панель администратора',
+        'btn_add_content': '➕ Загрузить контент',
+        'btn_manage_content': '📋 Управление контентом',
+        'btn_stats': '📊 Статистика',
+        'btn_settings': '⚙️ Настройки',
+        'btn_help': '❓ Помощь',
+        'btn_change_language': '🌐 Изменить язык',
+        
+        # Настройка контента
+        'setup_description': '📝 **Настроить описание**\n\nОтправьте описание для вашего контента:',
+        'setup_price': '💰 **Установить цену**\n\nВыберите цену в звёздах для вашего контента:',
+        'custom_price': '💰 **Пользовательская цена**\n\nОтправьте количество звёзд (например: 75):',
+        'btn_free': 'Бесплатно (0 ⭐)',
+        'btn_custom_price': '💰 Пользовательская цена',
+        'btn_publish': '✅ Опубликовать контент',
+        'btn_cancel': '❌ Отмена',
+        
+        # Команды и помощь
+        'help_message': '''📋 **Доступные команды:**
+
+🎬 *Для пользователей:*
+/start - Приветственное сообщение
+/catalogo - Просмотр доступного контента
+/ayuda - Эта помощь
+/idioma - Изменить язык
+
+💫 *О звёздах:*
+• Звёзды ⭐ - официальная валюта Telegram
+• Покупаются прямо в Telegram
+• Позволяют получить доступ к премиум контенту
+
+❓ *Нужна помощь?*
+Если у вас проблемы, свяжитесь с администратором канала.''',
+        
+        # Типы файлов
+        'photo_type': '📷 Фото',
+        'video_type': '🎥 Видео',
+        'document_type': '📄 Документ',
+        'content_type': '📁 Контент'
+    },
+    
+    'hi': {
+        # मुख्य संदेश
+        'welcome_select_language': '🌐 **स्वागत है!**\n\nआप बॉट को किस भाषा में इस्तेमाल करना पसंद करेंगे?',
+        'language_selected': '✅ **भाषा सेट की गई**\n\nपरफेक्ट! अब आप बॉट को हिंदी में इस्तेमाल करेंगे।',
+        'channel_empty': '💭 इस चैनल में अभी तक कोई सामग्री प्रकाशित नहीं की गई है।',
+        'content_unlocked': '✅ सामग्री अनलॉक हो गई!',
+        'purchase_successful': '🎉 **खरीदारी सफल!**\n\nआपकी खरीदारी के लिए धन्यवाद। सामग्री अनलॉक कर दी गई है।',
+        'insufficient_stars': '❌ इस खरीदारी के लिए आपके पास पर्याप्त स्टार नहीं हैं।',
+        'purchase_cancelled': '❌ खरीदारी रद्द की गई।',
+        
+        # एडमिन पैनल
+        'admin_panel': '🔧 **प्रशासन पैनल**\n\nएक विकल्प चुनें:',
+        'content_published': '✅ **सामग्री प्रकाशित!**',
+        'content_sent_to_all': '📡 **सभी उपयोगकर्ताओं को भेजा जा रहा है...**',
+        'upload_cancelled': '❌ **अपलोड रद्द**\n\nफाइल प्रकाशित नहीं की गई है।',
+        'missing_description': '❌ विवरण गुम',
+        'error_publishing': '❌ प्रकाशन त्रुटि',
+        
+        # मुख्य बटन
+        'btn_spanish': '🇪🇸 Español',
+        'btn_english': '🇺🇸 English',
+        'btn_french': '🇫🇷 Français',
+        'btn_portuguese': '🇧🇷 Português',
+        'btn_italian': '🇮🇹 Italiano',
+        'btn_german': '🇩🇪 Deutsch',
+        'btn_russian': '🇷🇺 Русский',
+        'btn_hindi': '🇮🇳 हिन्दी',
+        'btn_arabic': '🇸🇦 العربية',
+        'btn_admin_panel': '🔧 एडमिन पैनल',
+        'btn_add_content': '➕ सामग्री अपलोड करें',
+        'btn_manage_content': '📋 सामग्री प्रबंधित करें',
+        'btn_stats': '📊 आंकड़े',
+        'btn_settings': '⚙️ सेटिंग्स',
+        'btn_help': '❓ सहायता',
+        'btn_change_language': '🌐 भाषा बदलें',
+        
+        # सामग्री सेटअप
+        'setup_description': '📝 **विवरण सेटअप**\n\nअपनी सामग्री के लिए विवरण भेजें:',
+        'setup_price': '💰 **मूल्य सेट करें**\n\nअपनी सामग्री के लिए स्टार में मूल्य चुनें:',
+        'custom_price': '💰 **कस्टम मूल्य**\n\nस्टार की संख्या भेजें (उदाहरण: 75):',
+        'btn_free': 'मुफ्त (0 ⭐)',
+        'btn_custom_price': '💰 कस्टम मूल्य',
+        'btn_publish': '✅ सामग्री प्रकाशित करें',
+        'btn_cancel': '❌ रद्द करें',
+        
+        # कमांड और सहायता
+        'help_message': '''📋 **उपलब्ध कमांड:**
+
+🎬 *उपयोगकर्ताओं के लिए:*
+/start - स्वागत संदेश
+/catalogo - उपलब्ध सामग्री देखें
+/ayuda - यह सहायता
+/idioma - भाषा बदलें
+
+💫 *स्टार के बारे में:*
+• स्टार ⭐ टेलीग्राम की आधिकारिक मुद्रा है
+• सीधे टेलीग्राम में खरीदे जाते हैं
+• प्रीमियम सामग्री तक पहुंच की अनुमति देते हैं
+
+❓ *सहायता चाहिए?*
+यदि आपको समस्या है, तो चैनल प्रशासक से संपर्क करें।''',
+        
+        # फाइल प्रकार
+        'photo_type': '📷 फोटो',
+        'video_type': '🎥 वीडियो',
+        'document_type': '📄 दस्तावेज',
+        'content_type': '📁 सामग्री'
+    },
+    
+    'ar': {
+        # الرسائل الرئيسية
+        'welcome_select_language': '🌐 **أهلاً وسهلاً!**\n\nأي لغة تفضل استخدام البوت بها؟',
+        'language_selected': '✅ **تم تعيين اللغة**\n\nممتاز! الآن ستستخدم البوت باللغة العربية.',
+        'channel_empty': '💭 هذه القناة لا تحتوي على محتوى منشور حتى الآن.',
+        'content_unlocked': '✅ تم إلغاء قفل المحتوى!',
+        'purchase_successful': '🎉 **تم الشراء بنجاح!**\n\nشكراً لك على الشراء. تم إلغاء قفل المحتوى.',
+        'insufficient_stars': '❌ ليس لديك نجوم كافية لهذا الشراء.',
+        'purchase_cancelled': '❌ تم إلغاء الشراء.',
+        
+        # لوحة الإدارة
+        'admin_panel': '🔧 **لوحة الإدارة**\n\nاختر خياراً:',
+        'content_published': '✅ **تم نشر المحتوى!**',
+        'content_sent_to_all': '📡 **إرسال لجميع المستخدمين...**',
+        'upload_cancelled': '❌ **تم إلغاء الرفع**\n\nلم يتم نشر الملف.',
+        'missing_description': '❌ الوصف مفقود',
+        'error_publishing': '❌ خطأ في النشر',
+        
+        # الأزرار الرئيسية
+        'btn_spanish': '🇪🇸 Español',
+        'btn_english': '🇺🇸 English',
+        'btn_french': '🇫🇷 Français',
+        'btn_portuguese': '🇧🇷 Português',
+        'btn_italian': '🇮🇹 Italiano',
+        'btn_german': '🇩🇪 Deutsch',
+        'btn_russian': '🇷🇺 Русский',
+        'btn_hindi': '🇮🇳 हिन्दी',
+        'btn_arabic': '🇸🇦 العربية',
+        'btn_admin_panel': '🔧 لوحة الإدارة',
+        'btn_add_content': '➕ رفع محتوى',
+        'btn_manage_content': '📋 إدارة المحتوى',
+        'btn_stats': '📊 الإحصائيات',
+        'btn_settings': '⚙️ الإعدادات',
+        'btn_help': '❓ المساعدة',
+        'btn_change_language': '🌐 تغيير اللغة',
+        
+        # إعداد المحتوى
+        'setup_description': '📝 **إعداد الوصف**\n\nأرسل وصف المحتوى الخاص بك:',
+        'setup_price': '💰 **تحديد السعر**\n\nاختر السعر بالنجوم لمحتواك:',
+        'custom_price': '💰 **سعر مخصص**\n\nأرسل عدد النجوم (مثال: 75):',
+        'btn_free': 'مجاني (0 ⭐)',
+        'btn_custom_price': '💰 سعر مخصص',
+        'btn_publish': '✅ نشر المحتوى',
+        'btn_cancel': '❌ إلغاء',
+        
+        # الأوامر والمساعدة
+        'help_message': '''📋 **الأوامر المتاحة:**
+
+🎬 *للمستخدمين:*
+/start - رسالة ترحيب
+/catalogo - عرض المحتوى المتاح
+/ayuda - هذه المساعدة
+/idioma - تغيير اللغة
+
+💫 *حول النجوم:*
+• النجوم ⭐ هي العملة الرسمية لتيليجرام
+• يتم شراؤها مباشرة في تيليجرام
+• تسمح بالوصول للمحتوى المميز
+
+❓ *تحتاج مساعدة؟*
+إذا كان لديك مشاكل، تواصل مع مدير القناة.''',
+        
+        # أنواع الملفات
+        'photo_type': '📷 صورة',
+        'video_type': '🎥 فيديو',
+        'document_type': '📄 مستند',
+        'content_type': '📁 محتوى'
     }
 }
 
@@ -464,6 +674,12 @@ def get_content_description(content: dict, user_language: str) -> str:
         return content['description_it']
     elif user_language == 'de' and content.get('description_de'):
         return content['description_de']
+    elif user_language == 'ru' and content.get('description_ru'):
+        return content['description_ru']
+    elif user_language == 'hi' and content.get('description_hi'):
+        return content['description_hi']
+    elif user_language == 'ar' and content.get('description_ar'):
+        return content['description_ar']
     else:
         return content['description']  # Fallback al español
 
@@ -569,6 +785,36 @@ def translate_text(text: str, target_language: str, source_language: str = 'es')
             'colección': 'Sammlung', 'serie': 'Serie', 'pack': 'Pack', 'bundle': 'Bundle',
             'linda': 'süß', 'bonita': 'hübsch', 'sexy': 'sexy', 'sensual': 'sinnlich',
             'elegante': 'elegant', 'divertida': 'lustig', 'divertido': 'lustig'
+        },
+        'es_to_ru': {
+            'foto': 'фото', 'imagen': 'изображение', 'video': 'видео', 'contenido': 'контент',
+            'exclusivo': 'эксклюзивный', 'premium': 'премиум', 'gratis': 'бесплатно', 'nuevo': 'новый',
+            'especial': 'специальный', 'único': 'уникальный', 'increíble': 'невероятный', 'hermoso': 'красивый',
+            'hermosa': 'красивая', 'mujer': 'женщина', 'chica': 'девушка', 'niña': 'девочка', 'hombre': 'мужчина',
+            'chico': 'парень', 'niño': 'мальчик', 'calidad': 'качество', 'alta calidad': 'высокое качество',
+            'colección': 'коллекция', 'serie': 'серия', 'pack': 'пакет', 'bundle': 'набор',
+            'linda': 'милая', 'bonita': 'красивая', 'sexy': 'сексуальная', 'sensual': 'чувственная',
+            'elegante': 'элегантная', 'divertida': 'веселая', 'divertido': 'веселый'
+        },
+        'es_to_hi': {
+            'foto': 'फोटो', 'imagen': 'तस्वीर', 'video': 'वीडियो', 'contenido': 'सामग्री',
+            'exclusivo': 'विशेष', 'premium': 'प्रीमियम', 'gratis': 'मुफ्त', 'nuevo': 'नया',
+            'especial': 'विशेष', 'único': 'अनोखा', 'increíble': 'अविश्वसनीय', 'hermoso': 'सुंदर',
+            'hermosa': 'सुंदर', 'mujer': 'महिला', 'chica': 'लड़की', 'niña': 'बच्ची', 'hombre': 'आदमी',
+            'chico': 'लड़का', 'niño': 'बच्चा', 'calidad': 'गुणवत्ता', 'alta calidad': 'उच्च गुणवत्ता',
+            'colección': 'संग्रह', 'serie': 'श्रृंखला', 'pack': 'पैक', 'bundle': 'बंडल',
+            'linda': 'प्यारी', 'bonita': 'सुंदर', 'sexy': 'सेक्सी', 'sensual': 'कामुक',
+            'elegante': 'सुरुचिपूर्ण', 'divertida': 'मजेदार', 'divertido': 'मजेदार'
+        },
+        'es_to_ar': {
+            'foto': 'صورة', 'imagen': 'صورة', 'video': 'فيديو', 'contenido': 'محتوى',
+            'exclusivo': 'حصري', 'premium': 'مميز', 'gratis': 'مجاني', 'nuevo': 'جديد',
+            'especial': 'خاص', 'único': 'فريد', 'increíble': 'لا يصدق', 'hermoso': 'جميل',
+            'hermosa': 'جميلة', 'mujer': 'امرأة', 'chica': 'فتاة', 'niña': 'طفلة', 'hombre': 'رجل',
+            'chico': 'شاب', 'niño': 'طفل', 'calidad': 'جودة', 'alta calidad': 'جودة عالية',
+            'colección': 'مجموعة', 'serie': 'سلسلة', 'pack': 'حزمة', 'bundle': 'مجموعة',
+            'linda': 'جميلة', 'bonita': 'جميلة', 'sexy': 'مثيرة', 'sensual': 'حسية',
+            'elegante': 'أنيقة', 'divertida': 'مسلية', 'divertido': 'مسلي'
         }
     }
     
@@ -645,6 +891,18 @@ class ContentBot:
             pass
         try:
             cursor.execute('ALTER TABLE content ADD COLUMN description_de TEXT')
+        except:
+            pass
+        try:
+            cursor.execute('ALTER TABLE content ADD COLUMN description_ru TEXT')
+        except:
+            pass
+        try:
+            cursor.execute('ALTER TABLE content ADD COLUMN description_hi TEXT')
+        except:
+            pass
+        try:
+            cursor.execute('ALTER TABLE content ADD COLUMN description_ar TEXT')
         except:
             pass
         try:
@@ -802,7 +1060,8 @@ Si tienes problemas, contacta al administrador del canal.'''))
             # Solo contenido activo para usuarios normales
             cursor.execute('''
             SELECT id, title, description, description_en, description_fr, description_pt, 
-                   description_it, description_de, media_type, media_file_id, price_stars
+                   description_it, description_de, description_ru, description_hi, 
+                   description_ar, media_type, media_file_id, price_stars
             FROM content 
             WHERE is_active = 1
             ORDER BY created_at ASC
@@ -811,7 +1070,8 @@ Si tienes problemas, contacta al administrador del canal.'''))
             # Todo el contenido para admin
             cursor.execute('''
             SELECT id, title, description, description_en, description_fr, description_pt, 
-                   description_it, description_de, media_type, media_file_id, price_stars, is_active
+                   description_it, description_de, description_ru, description_hi, 
+                   description_ar, media_type, media_file_id, price_stars, is_active
             FROM content 
             ORDER BY created_at ASC
             ''')
@@ -828,9 +1088,12 @@ Si tienes problemas, contacta al administrador del canal.'''))
                     'description_pt': row[5],
                     'description_it': row[6],
                     'description_de': row[7],
-                    'media_type': row[8],
-                    'media_file_id': row[9],
-                    'price_stars': row[10]
+                    'description_ru': row[8],
+                    'description_hi': row[9],
+                    'description_ar': row[10],
+                    'media_type': row[11],
+                    'media_file_id': row[12],
+                    'price_stars': row[13]
                 })
             else:
                 content.append({
@@ -842,10 +1105,13 @@ Si tienes problemas, contacta al administrador del canal.'''))
                     'description_pt': row[5],
                     'description_it': row[6],
                     'description_de': row[7],
-                    'media_type': row[8],
-                    'media_file_id': row[9],
-                    'price_stars': row[10],
-                    'is_active': row[11]
+                    'description_ru': row[8],
+                    'description_hi': row[9],
+                    'description_ar': row[10],
+                    'media_type': row[11],
+                    'media_file_id': row[12],
+                    'price_stars': row[13],
+                    'is_active': row[14]
                 })
         
         conn.close()
@@ -864,14 +1130,19 @@ Si tienes problemas, contacta al administrador del canal.'''))
             description_pt = translate_text(description, 'pt', 'es')
             description_it = translate_text(description, 'it', 'es')
             description_de = translate_text(description, 'de', 'es')
+            description_ru = translate_text(description, 'ru', 'es')
+            description_hi = translate_text(description, 'hi', 'es')
+            description_ar = translate_text(description, 'ar', 'es')
             
             cursor.execute('''
             INSERT INTO content (title, description, description_en, description_fr, 
-                               description_pt, description_it, description_de, original_language, 
+                               description_pt, description_it, description_de, description_ru,
+                               description_hi, description_ar, original_language, 
                                media_type, media_file_id, price_stars)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (title, description, description_en, description_fr, description_pt, 
-                 description_it, description_de, 'es', media_type, media_file_id, price_stars))
+                 description_it, description_de, description_ru, description_hi, 
+                 description_ar, 'es', media_type, media_file_id, price_stars))
             
             content_id = cursor.lastrowid
             conn.commit()
@@ -932,7 +1203,8 @@ Si tienes problemas, contacta al administrador del canal.'''))
         
         cursor.execute('''
         SELECT id, title, description, description_en, description_fr, description_pt, 
-               description_it, description_de, media_type, media_file_id, price_stars
+               description_it, description_de, description_ru, description_hi, 
+               description_ar, media_type, media_file_id, price_stars
         FROM content 
         WHERE id = ? AND is_active = 1
         ''', (content_id,))
@@ -950,9 +1222,12 @@ Si tienes problemas, contacta al administrador del canal.'''))
                 'description_pt': row[5],
                 'description_it': row[6],
                 'description_de': row[7],
-                'media_type': row[8],
-                'media_file_id': row[9],
-                'price_stars': row[10]
+                'description_ru': row[8],
+                'description_hi': row[9],
+                'description_ar': row[10],
+                'media_type': row[11],
+                'media_file_id': row[12],
+                'price_stars': row[13]
             }
         return None
     
@@ -1430,7 +1705,10 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             [InlineKeyboardButton("🇫🇷 Français", callback_data="set_language_fr"), 
              InlineKeyboardButton("🇧🇷 Português", callback_data="set_language_pt")],
             [InlineKeyboardButton("🇮🇹 Italiano", callback_data="set_language_it"), 
-             InlineKeyboardButton("🇩🇪 Deutsch", callback_data="set_language_de")]
+             InlineKeyboardButton("🇩🇪 Deutsch", callback_data="set_language_de")],
+            [InlineKeyboardButton("🇷🇺 Русский", callback_data="set_language_ru"), 
+             InlineKeyboardButton("🇮🇳 हिन्दी", callback_data="set_language_hi")],
+            [InlineKeyboardButton("🇸🇦 العربية", callback_data="set_language_ar")]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
         
