@@ -789,12 +789,8 @@ async def menu_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("🔧 Panel Admin", callback_data="quick_admin")],
         [InlineKeyboardButton("➕ Subir Contenido", callback_data="quick_upload"), 
          InlineKeyboardButton("📋 Gestionar", callback_data="admin_manage_content")],
-        [InlineKeyboardButton("📊 Estadísticas", callback_data="admin_stats"), 
-         InlineKeyboardButton("⚙️ Configuración", callback_data="admin_settings")],
-        [InlineKeyboardButton("🗑️ Limpiar Chats Usuario", callback_data="clean_user_chats"), 
-         InlineKeyboardButton("🧹 Limpiar Chat Admin", callback_data="clean_admin_chat")],
-        [InlineKeyboardButton("📄 Exportar Stats", callback_data="export_stats")],
-        [InlineKeyboardButton("🔄 Actualizar Todo", callback_data="refresh_all_users")]
+        [InlineKeyboardButton("📊 Estadísticas", callback_data="admin_stats")],
+        [InlineKeyboardButton("🗑️ Limpiar Chats Usuario", callback_data="clean_user_chats")]
     ]
     
     reply_markup = InlineKeyboardMarkup(keyboard)
