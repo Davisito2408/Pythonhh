@@ -9,10 +9,10 @@ Bot de Telegram que simula la experiencia de un canal tradicional operando compl
 - ✅ Sistema de pagos con estrellas nativas de Telegram
 - ✅ Gestión completa de contenido (subir, editar, eliminar)
 - ✅ Base de datos SQLite para almacenar contenido y transacciones
-- ✅ Interfaz completamente multiidioma (9 idiomas)
-- ✅ Sistema de autenticación de administrador
+- ✅ Sistema de autenticación de administrador  
 - ✅ Registro automático de usuarios
 - ✅ Historial de compras
+- ✅ **Funciona completamente en español**
 
 ## Tecnologías Utilizadas
 - Python 3.11
@@ -32,13 +32,12 @@ Bot de Telegram que simula la experiencia de un canal tradicional operando compl
 ## Funcionalidades Implementadas
 
 ### Para Usuarios
-- /start: Bienvenida y registro automático **con selección de idioma**
+- /start: Acceso directo al contenido del canal
 - /catalogo: Ver contenido disponible con precios
 - /ayuda: Información de ayuda
-- **/idioma: Cambiar idioma entre 9 idiomas disponibles**
 - Sistema de compra con estrellas de Telegram
 - Acceso a contenido comprado o gratuito
-- **Sistema multiidioma completo (9 idiomas: Español, Inglés, Francés, Portugués, Italiano, Alemán, Ruso, Hindi, Árabe)**
+- **Interfaz completamente en español**
 
 ### Para Administrador
 - /admin: Panel de administración
@@ -68,7 +67,6 @@ Bot de Telegram que simula la experiencia de un canal tradicional operando compl
 - ✅ **NUEVA: Detección automática de archivos individuales vs grupos**
 - ✅ **NUEVA: Sistema de `sendMediaGroup` nativo de Telegram integrado**
 - ✅ **NUEVA: Publicación de álbumes con precio y descripción únicos**
-- ✅ **NUEVA: Soporte para 9 idiomas con traducción automática de contenido**
 - ✅ Bot completamente funcional y fácil de usar como canal real
 
 ## Configuración Replit
@@ -111,39 +109,17 @@ Bot de Telegram que simula la experiencia de un canal tradicional operando compl
 - 📄 Exportación de estadísticas
 - 🔄 Actualización masiva de todos los chats
 
-## Sistema Multiidioma - 9 Idiomas Soportados
+## Funcionalidades Principales del Sistema
 
-### Idiomas Disponibles
-- 🇪🇸 **Español** - Idioma base del bot
-- 🇺🇸 **Inglés** - English
-- 🇫🇷 **Francés** - Français
-- 🇧🇷 **Portugués** - Português  
-- 🇮🇹 **Italiano** - Italiano
-- 🇩🇪 **Alemán** - Deutsch
-- 🇷🇺 **Ruso** - Русский
-- 🇮🇳 **Hindi** - हिन्दी
-- 🇸🇦 **Árabe** - العربية
+### Experiencia de Usuario
+- **Experiencia nativa de canal**: Los usuarios ven todas las publicaciones al usar /start, sin mensajes de bienvenida
+- **Contenido gratuito**: Se muestra directamente como en un canal normal
+- **Contenido de pago**: Aparece con precio en estrellas encima y botón para desbloquear
+- **Interfaz simplificada**: Todo en español, sin complicaciones de idiomas
 
-### Funcionalidades Multiidioma
-- ✅ **Selección inicial**: Al usar /start por primera vez, el usuario puede elegir su idioma preferido
-- ✅ **Cambio de idioma**: Comando /idioma permite cambiar el idioma en cualquier momento
-- ✅ **Interfaz completa**: Todos los mensajes, botones y textos se muestran en el idioma seleccionado
-- ✅ **Descripción de contenido**: Las descripciones de contenido se traducen automáticamente al idioma del usuario
-- ✅ **Traducción automática**: Al subir contenido nuevo, se generan automáticamente traducciones para todos los idiomas
-- ✅ **Base de datos multiidioma**: Cada contenido almacena descripciones en los 9 idiomas soportados
-
-### Columnas de Base de Datos
-- `description` - Descripción original en español
-- `description_en` - Traducción al inglés
-- `description_fr` - Traducción al francés
-- `description_pt` - Traducción al portugués
-- `description_it` - Traducción al italiano
-- `description_de` - Traducción al alemán
-- `description_ru` - Traducción al ruso
-- `description_hi` - Traducción al hindi
-- `description_ar` - Traducción al árabe
-
-### Sistema de Traducción
-- **Traducciones básicas**: Diccionarios predefinidos para palabras comunes en contenido multimedia
-- **Palabras clave**: Términos específicos como "foto", "video", "premium", "exclusivo", etc.
-- **Fallback inteligente**: Si no hay traducción específica, mantiene el texto original con identificadores de idioma
+### Sistema de Base de Datos Simplificado
+- `content` - Tabla principal de contenido
+- `users` - Registro de usuarios
+- `purchases` - Historial de compras
+- `settings` - Configuraciones del bot
+- **Estructura optimizada**: Sin columnas multiidioma, base de datos más eficiente

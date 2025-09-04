@@ -47,12 +47,9 @@ DATABASE_NAME = 'bot_content.db'
 media_groups = defaultdict(list)
 pending_groups = {}
 
-# Diccionario de traducciones
-TRANSLATIONS = {
-    'es': {
+# Mensajes del bot en español
+MESSAGES = {
         # Mensajes principales
-        'welcome_select_language': '🌐 **¡Bienvenido!**\n\n¿En qué idioma prefieres usar el bot?',
-        'language_selected': '✅ **Idioma configurado**\n\n¡Perfecto! Ahora usarás el bot en español.',
         'channel_empty': '💭 Este canal aún no tiene contenido publicado.',
         'content_unlocked': '✅ ¡Contenido desbloqueado!',
         'purchase_successful': '🎉 **¡Compra exitosa!**\n\nGracias por tu compra. El contenido ha sido desbloqueado.',
@@ -68,22 +65,12 @@ TRANSLATIONS = {
         'error_publishing': '❌ Error al publicar',
         
         # Botones principales
-        'btn_spanish': '🇪🇸 Español',
-        'btn_english': '🇺🇸 English',
-        'btn_french': '🇫🇷 Français',
-        'btn_portuguese': '🇧🇷 Português',
-        'btn_italian': '🇮🇹 Italiano',
-        'btn_german': '🇩🇪 Deutsch',
-        'btn_russian': '🇷🇺 Русский',
-        'btn_hindi': '🇮🇳 हिन्दी',
-        'btn_arabic': '🇸🇦 العربية',
         'btn_admin_panel': '🔧 Panel de Administración',
         'btn_add_content': '➕ Subir Contenido',
         'btn_manage_content': '📋 Gestionar Contenido',
         'btn_stats': '📊 Estadísticas',
         'btn_settings': '⚙️ Configuración',
         'btn_help': '❓ Ayuda',
-        'btn_change_language': '🌐 Cambiar Idioma',
         
         # Configuración de contenido
         'setup_description': '📝 **Configurar Descripción**\n\nEnvía la descripción para tu contenido:',
@@ -101,7 +88,6 @@ TRANSLATIONS = {
 /start - Mensaje de bienvenida
 /catalogo - Ver contenido disponible
 /ayuda - Esta ayuda
-/idioma - Cambiar idioma
 
 💫 *Sobre las estrellas:*
 • Las estrellas ⭐ son la moneda oficial de Telegram
@@ -116,551 +102,12 @@ Si tienes problemas, contacta al administrador del canal.''',
         'video_type': '🎥 Video',
         'document_type': '📄 Documento',
         'content_type': '📁 Contenido'
-    },
-    
-    'en': {
-        # Main messages
-        'welcome_select_language': '🌐 **Welcome!**\n\nWhich language would you prefer to use the bot in?',
-        'language_selected': '✅ **Language configured**\n\nPerfect! Now you\'ll use the bot in English.',
-        'channel_empty': '💭 This channel doesn\'t have any published content yet.',
-        'content_unlocked': '✅ Content unlocked!',
-        'purchase_successful': '🎉 **Purchase successful!**\n\nThank you for your purchase. The content has been unlocked.',
-        'insufficient_stars': '❌ You don\'t have enough stars for this purchase.',
-        'purchase_cancelled': '❌ Purchase cancelled.',
-        
-        # Admin panel
-        'admin_panel': '🔧 **Administration Panel**\n\nSelect an option:',
-        'content_published': '✅ **Content published!**',
-        'content_sent_to_all': '📡 **Sending to all users...**',
-        'upload_cancelled': '❌ **Upload cancelled**\n\nThe file has not been published.',
-        'missing_description': '❌ Missing description',
-        'error_publishing': '❌ Publishing error',
-        
-        # Main buttons
-        'btn_spanish': '🇪🇸 Español',
-        'btn_english': '🇺🇸 English',
-        'btn_french': '🇫🇷 Français',
-        'btn_portuguese': '🇧🇷 Português',
-        'btn_italian': '🇮🇹 Italiano',
-        'btn_german': '🇩🇪 Deutsch',
-        'btn_admin_panel': '🔧 Admin Panel',
-        'btn_add_content': '➕ Upload Content',
-        'btn_manage_content': '📋 Manage Content',
-        'btn_stats': '📊 Statistics',
-        'btn_settings': '⚙️ Settings',
-        'btn_help': '❓ Help',
-        'btn_change_language': '🌐 Change Language',
-        
-        # Content setup
-        'setup_description': '📝 **Setup Description**\n\nSend the description for your content:',
-        'setup_price': '💰 **Set Price**\n\nSelect the price in stars for your content:',
-        'custom_price': '💰 **Custom Price**\n\nSend the number of stars (example: 75):',
-        'btn_free': 'Free (0 ⭐)',
-        'btn_custom_price': '💰 Custom price',
-        'btn_publish': '✅ Publish Content',
-        'btn_cancel': '❌ Cancel',
-        
-        # Commands and help
-        'help_message': '''📋 **Available Commands:**
-
-🎬 *For users:*
-/start - Welcome message
-/catalogo - View available content
-/ayuda - This help
-/idioma - Change language
-
-💫 *About stars:*
-• Stars ⭐ are Telegram's official currency
-• Bought directly in Telegram
-• Allow access to premium content
-
-❓ *Need help?*
-If you have problems, contact the channel administrator.''',
-        
-        # File types
-        'photo_type': '📷 Photo',
-        'video_type': '🎥 Video',
-        'document_type': '📄 Document',
-        'content_type': '📁 Content'
-    },
-    
-    'fr': {
-        # Messages principaux
-        'welcome_select_language': '🌐 **Bienvenue !**\n\nDans quelle langue préférez-vous utiliser le bot ?',
-        'language_selected': '✅ **Langue configurée**\n\nParfait ! Vous utiliserez maintenant le bot en français.',
-        'channel_empty': '💭 Cette chaîne n\'a encore aucun contenu publié.',
-        'content_unlocked': '✅ Contenu débloqué !',
-        'purchase_successful': '🎉 **Achat réussi !**\n\nMerci pour votre achat. Le contenu a été débloqué.',
-        'insufficient_stars': '❌ Vous n\'avez pas assez d\'étoiles pour cet achat.',
-        'purchase_cancelled': '❌ Achat annulé.',
-        
-        # Panneau d'administration
-        'admin_panel': '🔧 **Panneau d\'Administration**\n\nSélectionnez une option :',
-        'content_published': '✅ **Contenu publié !**',
-        'content_sent_to_all': '📡 **Envoi à tous les utilisateurs...**',
-        'upload_cancelled': '❌ **Téléchargement annulé**\n\nLe fichier n\'a pas été publié.',
-        'missing_description': '❌ Description manquante',
-        'error_publishing': '❌ Erreur de publication',
-        
-        # Boutons principaux
-        'btn_spanish': '🇪🇸 Español',
-        'btn_english': '🇺🇸 English',
-        'btn_french': '🇫🇷 Français',
-        'btn_portuguese': '🇧🇷 Português',
-        'btn_italian': '🇮🇹 Italiano',
-        'btn_german': '🇩🇪 Deutsch',
-        'btn_admin_panel': '🔧 Panneau d\'Admin',
-        'btn_add_content': '➕ Télécharger Contenu',
-        'btn_manage_content': '📋 Gérer Contenu',
-        'btn_stats': '📊 Statistiques',
-        'btn_settings': '⚙️ Paramètres',
-        'btn_help': '❓ Aide',
-        'btn_change_language': '🌐 Changer de Langue',
-        
-        # Configuration du contenu
-        'setup_description': '📝 **Configurer Description**\n\nEnvoyez la description de votre contenu :',
-        'setup_price': '💰 **Définir le Prix**\n\nSélectionnez le prix en étoiles pour votre contenu :',
-        'custom_price': '💰 **Prix Personnalisé**\n\nEnvoyez le nombre d\'étoiles (exemple : 75) :',
-        'btn_free': 'Gratuit (0 ⭐)',
-        'btn_custom_price': '💰 Prix personnalisé',
-        'btn_publish': '✅ Publier Contenu',
-        'btn_cancel': '❌ Annuler',
-        
-        # Commandes et aide
-        'help_message': '''📋 **Commandes Disponibles :**
-
-🎬 *Pour les utilisateurs :*
-/start - Message de bienvenue
-/catalogo - Voir contenu disponible
-/ayuda - Cette aide
-/idioma - Changer de langue
-
-💫 *À propos des étoiles :*
-• Les étoiles ⭐ sont la monnaie officielle de Telegram
-• Elles s\'achètent directement sur Telegram
-• Elles permettent d\'accéder au contenu premium
-
-❓ *Besoin d\'aide ?*
-Si vous avez des problèmes, contactez l\'administrateur de la chaîne.''',
-        
-        # Types de fichier
-        'photo_type': '📷 Photo',
-        'video_type': '🎥 Vidéo',
-        'document_type': '📄 Document',
-        'content_type': '📁 Contenu'
-    },
-    
-    'pt': {
-        # Mensagens principais
-        'welcome_select_language': '🌐 **Bem-vindo!**\n\nEm qual idioma prefere usar o bot?',
-        'language_selected': '✅ **Idioma configurado**\n\nPerfeito! Agora você usará o bot em português.',
-        'channel_empty': '💭 Este canal ainda não possui conteúdo publicado.',
-        'content_unlocked': '✅ Conteúdo desbloqueado!',
-        'purchase_successful': '🎉 **Compra realizada!**\n\nObrigado pela sua compra. O conteúdo foi desbloqueado.',
-        'insufficient_stars': '❌ Você não possui estrelas suficientes para esta compra.',
-        'purchase_cancelled': '❌ Compra cancelada.',
-        
-        # Painel de administração
-        'admin_panel': '🔧 **Painel de Administração**\n\nSelecione uma opção:',
-        'content_published': '✅ **Conteúdo publicado!**',
-        'content_sent_to_all': '📡 **Enviando para todos os usuários...**',
-        'upload_cancelled': '❌ **Upload cancelado**\n\nO arquivo não foi publicado.',
-        'missing_description': '❌ Descrição em falta',
-        'error_publishing': '❌ Erro ao publicar',
-        
-        # Botões principais
-        'btn_spanish': '🇪🇸 Español',
-        'btn_english': '🇺🇸 English',
-        'btn_french': '🇫🇷 Français',
-        'btn_portuguese': '🇧🇷 Português',
-        'btn_italian': '🇮🇹 Italiano',
-        'btn_german': '🇩🇪 Deutsch',
-        'btn_admin_panel': '🔧 Painel Admin',
-        'btn_add_content': '➕ Upload Conteúdo',
-        'btn_manage_content': '📋 Gerenciar Conteúdo',
-        'btn_stats': '📊 Estatísticas',
-        'btn_settings': '⚙️ Configurações',
-        'btn_help': '❓ Ajuda',
-        'btn_change_language': '🌐 Mudar Idioma',
-        
-        # Configuração de conteúdo
-        'setup_description': '📝 **Configurar Descrição**\n\nEnvie a descrição do seu conteúdo:',
-        'setup_price': '💰 **Definir Preço**\n\nSelecione o preço em estrelas para seu conteúdo:',
-        'custom_price': '💰 **Preço Personalizado**\n\nEnvie o número de estrelas (exemplo: 75):',
-        'btn_free': 'Gratuito (0 ⭐)',
-        'btn_custom_price': '💰 Preço personalizado',
-        'btn_publish': '✅ Publicar Conteúdo',
-        'btn_cancel': '❌ Cancelar',
-        
-        # Comandos e ajuda
-        'help_message': '''📋 **Comandos Disponíveis:**
-
-🎬 *Para usuários:*
-/start - Mensagem de boas-vindas
-/catalogo - Ver conteúdo disponível
-/ayuda - Esta ajuda
-/idioma - Mudar idioma
-
-💫 *Sobre as estrelas:*
-• As estrelas ⭐ são a moeda oficial do Telegram
-• São compradas diretamente no Telegram
-• Permitem acessar conteúdo premium
-
-❓ *Precisa de ajuda?*
-Se tiver problemas, entre em contato com o administrador do canal.''',
-        
-        # Tipos de arquivo
-        'photo_type': '📷 Foto',
-        'video_type': '🎥 Vídeo',
-        'document_type': '📄 Documento',
-        'content_type': '📁 Conteúdo'
-    },
-    
-    'it': {
-        # Messaggi principali
-        'welcome_select_language': '🌐 **Benvenuto!**\n\nIn quale lingua preferisci usare il bot?',
-        'language_selected': '✅ **Lingua configurata**\n\nPerfetto! Ora userai il bot in italiano.',
-        'channel_empty': '💭 Questo canale non ha ancora contenuti pubblicati.',
-        'content_unlocked': '✅ Contenuto sbloccato!',
-        'purchase_successful': '🎉 **Acquisto completato!**\n\nGrazie per il tuo acquisto. Il contenuto è stato sbloccato.',
-        'insufficient_stars': '❌ Non hai abbastanza stelle per questo acquisto.',
-        'purchase_cancelled': '❌ Acquisto annullato.',
-        
-        # Pannello di amministrazione
-        'admin_panel': '🔧 **Pannello di Amministrazione**\n\nSeleziona un\'opzione:',
-        'content_published': '✅ **Contenuto pubblicato!**',
-        'content_sent_to_all': '📡 **Invio a tutti gli utenti...**',
-        'upload_cancelled': '❌ **Upload annullato**\n\nIl file non è stato pubblicato.',
-        'missing_description': '❌ Descrizione mancante',
-        'error_publishing': '❌ Errore di pubblicazione',
-        
-        # Pulsanti principali
-        'btn_spanish': '🇪🇸 Español',
-        'btn_english': '🇺🇸 English',
-        'btn_french': '🇫🇷 Français',
-        'btn_portuguese': '🇧🇷 Português',
-        'btn_italian': '🇮🇹 Italiano',
-        'btn_german': '🇩🇪 Deutsch',
-        'btn_admin_panel': '🔧 Pannello Admin',
-        'btn_add_content': '➕ Carica Contenuto',
-        'btn_manage_content': '📋 Gestisci Contenuto',
-        'btn_stats': '📊 Statistiche',
-        'btn_settings': '⚙️ Impostazioni',
-        'btn_help': '❓ Aiuto',
-        'btn_change_language': '🌐 Cambia Lingua',
-        
-        # Configurazione contenuto
-        'setup_description': '📝 **Configura Descrizione**\n\nInvia la descrizione del tuo contenuto:',
-        'setup_price': '💰 **Imposta Prezzo**\n\nSeleziona il prezzo in stelle per il tuo contenuto:',
-        'custom_price': '💰 **Prezzo Personalizzato**\n\nInvia il numero di stelle (esempio: 75):',
-        'btn_free': 'Gratuito (0 ⭐)',
-        'btn_custom_price': '💰 Prezzo personalizzato',
-        'btn_publish': '✅ Pubblica Contenuto',
-        'btn_cancel': '❌ Annulla',
-        
-        # Comandi e aiuto
-        'help_message': '''📋 **Comandi Disponibili:**
-
-🎬 *Per utenti:*
-/start - Messaggio di benvenuto
-/catalogo - Vedi contenuto disponibile
-/ayuda - Questo aiuto
-/idioma - Cambia lingua
-
-💫 *Sulle stelle:*
-• Le stelle ⭐ sono la valuta ufficiale di Telegram
-• Si acquistano direttamente su Telegram
-• Permettono di accedere a contenuti premium
-
-❓ *Hai bisogno di aiuto?*
-Se hai problemi, contatta l\'amministratore del canale.''',
-        
-        # Tipi di file
-        'photo_type': '📷 Foto',
-        'video_type': '🎥 Video',
-        'document_type': '📄 Documento',
-        'content_type': '📁 Contenuto'
-    },
-    
-    'de': {
-        # Hauptnachrichten
-        'welcome_select_language': '🌐 **Willkommen!**\n\nIn welcher Sprache möchten Sie den Bot verwenden?',
-        'language_selected': '✅ **Sprache konfiguriert**\n\nPerfekt! Sie werden den Bot jetzt auf Deutsch verwenden.',
-        'channel_empty': '💭 Dieser Kanal hat noch keine veröffentlichten Inhalte.',
-        'content_unlocked': '✅ Inhalt freigeschaltet!',
-        'purchase_successful': '🎉 **Kauf erfolgreich!**\n\nVielen Dank für Ihren Kauf. Der Inhalt wurde freigeschaltet.',
-        'insufficient_stars': '❌ Sie haben nicht genügend Sterne für diesen Kauf.',
-        'purchase_cancelled': '❌ Kauf abgebrochen.',
-        
-        # Administrationsbereich
-        'admin_panel': '🔧 **Administrationsbereich**\n\nWählen Sie eine Option:',
-        'content_published': '✅ **Inhalt veröffentlicht!**',
-        'content_sent_to_all': '📡 **Sende an alle Benutzer...**',
-        'upload_cancelled': '❌ **Upload abgebrochen**\n\nDie Datei wurde nicht veröffentlicht.',
-        'missing_description': '❌ Beschreibung fehlt',
-        'error_publishing': '❌ Veröffentlichungsfehler',
-        
-        # Hauptschaltflächen
-        'btn_spanish': '🇪🇸 Español',
-        'btn_english': '🇺🇸 English',
-        'btn_french': '🇫🇷 Français',
-        'btn_portuguese': '🇧🇷 Português',
-        'btn_italian': '🇮🇹 Italiano',
-        'btn_german': '🇩🇪 Deutsch',
-        'btn_admin_panel': '🔧 Admin-Panel',
-        'btn_add_content': '➕ Inhalt hochladen',
-        'btn_manage_content': '📋 Inhalt verwalten',
-        'btn_stats': '📊 Statistiken',
-        'btn_settings': '⚙️ Einstellungen',
-        'btn_help': '❓ Hilfe',
-        'btn_change_language': '🌐 Sprache ändern',
-        
-        # Inhaltskonfiguration
-        'setup_description': '📝 **Beschreibung konfigurieren**\n\nSenden Sie die Beschreibung für Ihren Inhalt:',
-        'setup_price': '💰 **Preis festlegen**\n\nWählen Sie den Preis in Sternen für Ihren Inhalt:',
-        'custom_price': '💰 **Individueller Preis**\n\nSenden Sie die Anzahl der Sterne (Beispiel: 75):',
-        'btn_free': 'Kostenlos (0 ⭐)',
-        'btn_custom_price': '💰 Individueller Preis',
-        'btn_publish': '✅ Inhalt veröffentlichen',
-        'btn_cancel': '❌ Abbrechen',
-        
-        # Befehle und Hilfe
-        'help_message': '''📋 **Verfügbare Befehle:**
-
-🎬 *Für Benutzer:*
-/start - Willkommensnachricht
-/catalogo - Verfügbaren Inhalt anzeigen
-/ayuda - Diese Hilfe
-/idioma - Sprache ändern
-
-💫 *Über Sterne:*
-• Sterne ⭐ sind die offizielle Währung von Telegram
-• Sie werden direkt in Telegram gekauft
-• Sie ermöglichen den Zugang zu Premium-Inhalten
-
-❓ *Brauchen Sie Hilfe?*
-Bei Problemen wenden Sie sich an den Kanaladministrator.''',
-        
-        # Dateitypen
-        'photo_type': '📷 Foto',
-        'video_type': '🎥 Video',
-        'document_type': '📄 Dokument',
-        'content_type': '📁 Inhalt'
-    },
-    
-    'ru': {
-        # Основные сообщения
-        'welcome_select_language': '🌐 **Добро пожаловать!**\n\nНа каком языке вы предпочитаете использовать бота?',
-        'language_selected': '✅ **Язык настроен**\n\nОтлично! Теперь вы будете использовать бота на русском языке.',
-        'channel_empty': '💭 В этом канале пока нет опубликованного контента.',
-        'content_unlocked': '✅ Контент разблокирован!',
-        'purchase_successful': '🎉 **Покупка успешна!**\n\nСпасибо за покупку. Контент был разблокирован.',
-        'insufficient_stars': '❌ У вас недостаточно звёзд для этой покупки.',
-        'purchase_cancelled': '❌ Покупка отменена.',
-        
-        # Панель администрирования
-        'admin_panel': '🔧 **Панель администрирования**\n\nВыберите опцию:',
-        'content_published': '✅ **Контент опубликован!**',
-        'content_sent_to_all': '📡 **Отправка всем пользователям...**',
-        'upload_cancelled': '❌ **Загрузка отменена**\n\nФайл не был опубликован.',
-        'missing_description': '❌ Отсутствует описание',
-        'error_publishing': '❌ Ошибка публикации',
-        
-        # Основные кнопки
-        'btn_spanish': '🇪🇸 Español',
-        'btn_english': '🇺🇸 English',
-        'btn_french': '🇫🇷 Français',
-        'btn_portuguese': '🇧🇷 Português',
-        'btn_italian': '🇮🇹 Italiano',
-        'btn_german': '🇩🇪 Deutsch',
-        'btn_russian': '🇷🇺 Русский',
-        'btn_hindi': '🇮🇳 हिन्दी',
-        'btn_arabic': '🇸🇦 العربية',
-        'btn_admin_panel': '🔧 Панель администратора',
-        'btn_add_content': '➕ Загрузить контент',
-        'btn_manage_content': '📋 Управление контентом',
-        'btn_stats': '📊 Статистика',
-        'btn_settings': '⚙️ Настройки',
-        'btn_help': '❓ Помощь',
-        'btn_change_language': '🌐 Изменить язык',
-        
-        # Настройка контента
-        'setup_description': '📝 **Настроить описание**\n\nОтправьте описание для вашего контента:',
-        'setup_price': '💰 **Установить цену**\n\nВыберите цену в звёздах для вашего контента:',
-        'custom_price': '💰 **Пользовательская цена**\n\nОтправьте количество звёзд (например: 75):',
-        'btn_free': 'Бесплатно (0 ⭐)',
-        'btn_custom_price': '💰 Пользовательская цена',
-        'btn_publish': '✅ Опубликовать контент',
-        'btn_cancel': '❌ Отмена',
-        
-        # Команды и помощь
-        'help_message': '''📋 **Доступные команды:**
-
-🎬 *Для пользователей:*
-/start - Приветственное сообщение
-/catalogo - Просмотр доступного контента
-/ayuda - Эта помощь
-/idioma - Изменить язык
-
-💫 *О звёздах:*
-• Звёзды ⭐ - официальная валюта Telegram
-• Покупаются прямо в Telegram
-• Позволяют получить доступ к премиум контенту
-
-❓ *Нужна помощь?*
-Если у вас проблемы, свяжитесь с администратором канала.''',
-        
-        # Типы файлов
-        'photo_type': '📷 Фото',
-        'video_type': '🎥 Видео',
-        'document_type': '📄 Документ',
-        'content_type': '📁 Контент'
-    },
-    
-    'hi': {
-        # मुख्य संदेश
-        'welcome_select_language': '🌐 **स्वागत है!**\n\nआप बॉट को किस भाषा में इस्तेमाल करना पसंद करेंगे?',
-        'language_selected': '✅ **भाषा सेट की गई**\n\nपरफेक्ट! अब आप बॉट को हिंदी में इस्तेमाल करेंगे।',
-        'channel_empty': '💭 इस चैनल में अभी तक कोई सामग्री प्रकाशित नहीं की गई है।',
-        'content_unlocked': '✅ सामग्री अनलॉक हो गई!',
-        'purchase_successful': '🎉 **खरीदारी सफल!**\n\nआपकी खरीदारी के लिए धन्यवाद। सामग्री अनलॉक कर दी गई है।',
-        'insufficient_stars': '❌ इस खरीदारी के लिए आपके पास पर्याप्त स्टार नहीं हैं।',
-        'purchase_cancelled': '❌ खरीदारी रद्द की गई।',
-        
-        # एडमिन पैनल
-        'admin_panel': '🔧 **प्रशासन पैनल**\n\nएक विकल्प चुनें:',
-        'content_published': '✅ **सामग्री प्रकाशित!**',
-        'content_sent_to_all': '📡 **सभी उपयोगकर्ताओं को भेजा जा रहा है...**',
-        'upload_cancelled': '❌ **अपलोड रद्द**\n\nफाइल प्रकाशित नहीं की गई है।',
-        'missing_description': '❌ विवरण गुम',
-        'error_publishing': '❌ प्रकाशन त्रुटि',
-        
-        # मुख्य बटन
-        'btn_spanish': '🇪🇸 Español',
-        'btn_english': '🇺🇸 English',
-        'btn_french': '🇫🇷 Français',
-        'btn_portuguese': '🇧🇷 Português',
-        'btn_italian': '🇮🇹 Italiano',
-        'btn_german': '🇩🇪 Deutsch',
-        'btn_russian': '🇷🇺 Русский',
-        'btn_hindi': '🇮🇳 हिन्दी',
-        'btn_arabic': '🇸🇦 العربية',
-        'btn_admin_panel': '🔧 एडमिन पैनल',
-        'btn_add_content': '➕ सामग्री अपलोड करें',
-        'btn_manage_content': '📋 सामग्री प्रबंधित करें',
-        'btn_stats': '📊 आंकड़े',
-        'btn_settings': '⚙️ सेटिंग्स',
-        'btn_help': '❓ सहायता',
-        'btn_change_language': '🌐 भाषा बदलें',
-        
-        # सामग्री सेटअप
-        'setup_description': '📝 **विवरण सेटअप**\n\nअपनी सामग्री के लिए विवरण भेजें:',
-        'setup_price': '💰 **मूल्य सेट करें**\n\nअपनी सामग्री के लिए स्टार में मूल्य चुनें:',
-        'custom_price': '💰 **कस्टम मूल्य**\n\nस्टार की संख्या भेजें (उदाहरण: 75):',
-        'btn_free': 'मुफ्त (0 ⭐)',
-        'btn_custom_price': '💰 कस्टम मूल्य',
-        'btn_publish': '✅ सामग्री प्रकाशित करें',
-        'btn_cancel': '❌ रद्द करें',
-        
-        # कमांड और सहायता
-        'help_message': '''📋 **उपलब्ध कमांड:**
-
-🎬 *उपयोगकर्ताओं के लिए:*
-/start - स्वागत संदेश
-/catalogo - उपलब्ध सामग्री देखें
-/ayuda - यह सहायता
-/idioma - भाषा बदलें
-
-💫 *स्टार के बारे में:*
-• स्टार ⭐ टेलीग्राम की आधिकारिक मुद्रा है
-• सीधे टेलीग्राम में खरीदे जाते हैं
-• प्रीमियम सामग्री तक पहुंच की अनुमति देते हैं
-
-❓ *सहायता चाहिए?*
-यदि आपको समस्या है, तो चैनल प्रशासक से संपर्क करें।''',
-        
-        # फाइल प्रकार
-        'photo_type': '📷 फोटो',
-        'video_type': '🎥 वीडियो',
-        'document_type': '📄 दस्तावेज',
-        'content_type': '📁 सामग्री'
-    },
-    
-    'ar': {
-        # الرسائل الرئيسية
-        'welcome_select_language': '🌐 **أهلاً وسهلاً!**\n\nأي لغة تفضل استخدام البوت بها؟',
-        'language_selected': '✅ **تم تعيين اللغة**\n\nممتاز! الآن ستستخدم البوت باللغة العربية.',
-        'channel_empty': '💭 هذه القناة لا تحتوي على محتوى منشور حتى الآن.',
-        'content_unlocked': '✅ تم إلغاء قفل المحتوى!',
-        'purchase_successful': '🎉 **تم الشراء بنجاح!**\n\nشكراً لك على الشراء. تم إلغاء قفل المحتوى.',
-        'insufficient_stars': '❌ ليس لديك نجوم كافية لهذا الشراء.',
-        'purchase_cancelled': '❌ تم إلغاء الشراء.',
-        
-        # لوحة الإدارة
-        'admin_panel': '🔧 **لوحة الإدارة**\n\nاختر خياراً:',
-        'content_published': '✅ **تم نشر المحتوى!**',
-        'content_sent_to_all': '📡 **إرسال لجميع المستخدمين...**',
-        'upload_cancelled': '❌ **تم إلغاء الرفع**\n\nلم يتم نشر الملف.',
-        'missing_description': '❌ الوصف مفقود',
-        'error_publishing': '❌ خطأ في النشر',
-        
-        # الأزرار الرئيسية
-        'btn_spanish': '🇪🇸 Español',
-        'btn_english': '🇺🇸 English',
-        'btn_french': '🇫🇷 Français',
-        'btn_portuguese': '🇧🇷 Português',
-        'btn_italian': '🇮🇹 Italiano',
-        'btn_german': '🇩🇪 Deutsch',
-        'btn_russian': '🇷🇺 Русский',
-        'btn_hindi': '🇮🇳 हिन्दी',
-        'btn_arabic': '🇸🇦 العربية',
-        'btn_admin_panel': '🔧 لوحة الإدارة',
-        'btn_add_content': '➕ رفع محتوى',
-        'btn_manage_content': '📋 إدارة المحتوى',
-        'btn_stats': '📊 الإحصائيات',
-        'btn_settings': '⚙️ الإعدادات',
-        'btn_help': '❓ المساعدة',
-        'btn_change_language': '🌐 تغيير اللغة',
-        
-        # إعداد المحتوى
-        'setup_description': '📝 **إعداد الوصف**\n\nأرسل وصف المحتوى الخاص بك:',
-        'setup_price': '💰 **تحديد السعر**\n\nاختر السعر بالنجوم لمحتواك:',
-        'custom_price': '💰 **سعر مخصص**\n\nأرسل عدد النجوم (مثال: 75):',
-        'btn_free': 'مجاني (0 ⭐)',
-        'btn_custom_price': '💰 سعر مخصص',
-        'btn_publish': '✅ نشر المحتوى',
-        'btn_cancel': '❌ إلغاء',
-        
-        # الأوامر والمساعدة
-        'help_message': '''📋 **الأوامر المتاحة:**
-
-🎬 *للمستخدمين:*
-/start - رسالة ترحيب
-/catalogo - عرض المحتوى المتاح
-/ayuda - هذه المساعدة
-/idioma - تغيير اللغة
-
-💫 *حول النجوم:*
-• النجوم ⭐ هي العملة الرسمية لتيليجرام
-• يتم شراؤها مباشرة في تيليجرام
-• تسمح بالوصول للمحتوى المميز
-
-❓ *تحتاج مساعدة؟*
-إذا كان لديك مشاكل، تواصل مع مدير القناة.''',
-        
-        # أنواع الملفات
-        'photo_type': '📷 صورة',
-        'video_type': '🎥 فيديو',
-        'document_type': '📄 مستند',
-        'content_type': '📁 محتوى'
-    }
 }
 
-# Función auxiliar para obtener textos traducidos
+# Función auxiliar para obtener textos en español
 def get_text(user_id: int, key: str) -> str:
-    """Obtiene texto traducido para el usuario"""
-    language = content_bot.get_user_language(user_id) if content_bot else 'es'
-    return TRANSLATIONS.get(language, TRANSLATIONS['es']).get(key, f"[Missing: {key}]")
+    """Obtiene texto del diccionario de mensajes"""
+    return MESSAGES.get(key, f"[Missing: {key}]")
 
 def escape_markdown(text: str) -> str:
     """Escapa caracteres especiales problemáticos de Markdown"""
@@ -684,196 +131,17 @@ def escape_markdown(text: str) -> str:
     
     return text.strip()
 
-def get_content_description(content: dict, user_language: str) -> str:
-    """Obtiene la descripción del contenido en el idioma del usuario"""
-    description = ""
+def get_content_description(content: dict, user_language: str = 'es') -> str:
+    """Obtiene la descripción del contenido"""
+    # Usar la descripción original en español
+    description = content.get('description', '')
     
-    # Primero intentar obtener la descripción en el idioma solicitado
-    if user_language == 'en' and content.get('description_en') and content['description_en'].strip():
-        description = content['description_en']
-    elif user_language == 'fr' and content.get('description_fr') and content['description_fr'].strip():
-        description = content['description_fr']
-    elif user_language == 'pt' and content.get('description_pt') and content['description_pt'].strip():
-        description = content['description_pt']
-    elif user_language == 'it' and content.get('description_it') and content['description_it'].strip():
-        description = content['description_it']
-    elif user_language == 'de' and content.get('description_de') and content['description_de'].strip():
-        description = content['description_de']
-    elif user_language == 'ru' and content.get('description_ru') and content['description_ru'].strip():
-        description = content['description_ru']
-    elif user_language == 'hi' and content.get('description_hi') and content['description_hi'].strip():
-        description = content['description_hi']
-    elif user_language == 'ar' and content.get('description_ar') and content['description_ar'].strip():
-        description = content['description_ar']
-    else:
-        # Fallback: usar descripción original y traducir básicamente
-        original_desc = content.get('description', '')
-        if original_desc and user_language != 'es':
-            description = translate_text(original_desc, user_language, 'es')
-        else:
-            description = original_desc
-    
-    # Si aún no hay descripción, usar el título
+    # Si no hay descripción, usar el título
     if not description or not description.strip():
         description = content.get('title', 'Contenido sin descripción')
     
     # Limpiar la descripción
     return escape_markdown(description.strip())
-
-# Función simple de traducción usando transformación básica
-def translate_text(text: str, target_language: str, source_language: str = 'es') -> str:
-    """Traduce texto usando transformaciones básicas (expandible con IA)"""
-    if source_language == target_language:
-        return text
-    
-    # Diccionario básico de traducciones comunes para mejorar calidad
-    common_translations = {
-        'es_to_en': {
-            # Palabras y frases comunes en descripciones
-            'foto': 'photo',
-            'imagen': 'image', 
-            'video': 'video',
-            'contenido': 'content',
-            'exclusivo': 'exclusive',
-            'premium': 'premium',
-            'gratis': 'free',
-            'nuevo': 'new',
-            'especial': 'special',
-            'único': 'unique',
-            'increíble': 'amazing',
-            'hermoso': 'beautiful',
-            'hermosa': 'beautiful',
-            'mujer': 'woman',
-            'chica': 'girl',
-            'niña': 'girl',
-            'hombre': 'man',
-            'chico': 'guy',
-            'niño': 'boy',
-            'calidad': 'quality',
-            'alta calidad': 'high quality',
-            'colección': 'collection',
-            'serie': 'series',
-            'pack': 'pack',
-            'bundle': 'bundle',
-            'linda': 'cute',
-            'bonita': 'pretty',
-            'sexy': 'sexy',
-            'sensual': 'sensual',
-            'elegante': 'elegant',
-            'divertida': 'fun',
-            'divertido': 'fun'
-        },
-        'en_to_es': {
-            'photo': 'foto',
-            'image': 'imagen',
-            'video': 'video', 
-            'content': 'contenido',
-            'exclusive': 'exclusivo',
-            'premium': 'premium',
-            'free': 'gratis',
-            'new': 'nuevo',
-            'special': 'especial',
-            'unique': 'único',
-            'amazing': 'increíble',
-            'beautiful': 'hermoso',
-            'quality': 'calidad',
-            'high quality': 'alta calidad',
-            'collection': 'colección',
-            'series': 'serie',
-            'pack': 'pack',
-            'bundle': 'bundle'
-        },
-        'es_to_fr': {
-            'foto': 'photo', 'imagen': 'image', 'video': 'vidéo', 'contenido': 'contenu',
-            'exclusivo': 'exclusif', 'premium': 'premium', 'gratis': 'gratuit', 'nuevo': 'nouveau',
-            'especial': 'spécial', 'único': 'unique', 'increíble': 'incroyable', 'hermoso': 'beau',
-            'hermosa': 'belle', 'mujer': 'femme', 'chica': 'fille', 'niña': 'fille', 'hombre': 'homme',
-            'chico': 'garçon', 'niño': 'garçon', 'calidad': 'qualité', 'alta calidad': 'haute qualité',
-            'colección': 'collection', 'serie': 'série', 'pack': 'pack', 'bundle': 'bundle',
-            'linda': 'mignonne', 'bonita': 'jolie', 'sexy': 'sexy', 'sensual': 'sensuel',
-            'elegante': 'élégant', 'divertida': 'amusant', 'divertido': 'amusant'
-        },
-        'es_to_pt': {
-            'foto': 'foto', 'imagen': 'imagem', 'video': 'vídeo', 'contenido': 'conteúdo',
-            'exclusivo': 'exclusivo', 'premium': 'premium', 'gratis': 'grátis', 'nuevo': 'novo',
-            'especial': 'especial', 'único': 'único', 'increíble': 'incrível', 'hermoso': 'lindo',
-            'hermosa': 'linda', 'mujer': 'mulher', 'chica': 'garota', 'niña': 'menina', 'hombre': 'homem',
-            'chico': 'garoto', 'niño': 'menino', 'calidad': 'qualidade', 'alta calidade': 'alta qualidade',
-            'colección': 'coleção', 'serie': 'série', 'pack': 'pack', 'bundle': 'bundle',
-            'linda': 'fofa', 'bonita': 'bonita', 'sexy': 'sexy', 'sensual': 'sensual',
-            'elegante': 'elegante', 'divertida': 'divertida', 'divertido': 'divertido'
-        },
-        'es_to_it': {
-            'foto': 'foto', 'imagen': 'immagine', 'video': 'video', 'contenido': 'contenuto',
-            'exclusivo': 'esclusivo', 'premium': 'premium', 'gratis': 'gratuito', 'nuevo': 'nuovo',
-            'especial': 'speciale', 'único': 'unico', 'increíble': 'incredibile', 'hermoso': 'bello',
-            'hermosa': 'bella', 'mujer': 'donna', 'chica': 'ragazza', 'niña': 'bambina', 'hombre': 'uomo',
-            'chico': 'ragazzo', 'niño': 'bambino', 'calidad': 'qualità', 'alta calidad': 'alta qualità',
-            'colección': 'collezione', 'serie': 'serie', 'pack': 'pack', 'bundle': 'bundle',
-            'linda': 'carina', 'bonita': 'carina', 'sexy': 'sexy', 'sensual': 'sensuale',
-            'elegante': 'elegante', 'divertida': 'divertente', 'divertido': 'divertente'
-        },
-        'es_to_de': {
-            'foto': 'Foto', 'imagen': 'Bild', 'video': 'Video', 'contenido': 'Inhalt',
-            'exclusivo': 'exklusiv', 'premium': 'Premium', 'gratis': 'kostenlos', 'nuevo': 'neu',
-            'especial': 'besonders', 'único': 'einzigartig', 'increíble': 'unglaublich', 'hermoso': 'schön',
-            'hermosa': 'schön', 'mujer': 'Frau', 'chica': 'Mädchen', 'niña': 'Mädchen', 'hombre': 'Mann',
-            'chico': 'Junge', 'niño': 'Junge', 'calidad': 'Qualität', 'alta calidad': 'hohe Qualität',
-            'colección': 'Sammlung', 'serie': 'Serie', 'pack': 'Pack', 'bundle': 'Bundle',
-            'linda': 'süß', 'bonita': 'hübsch', 'sexy': 'sexy', 'sensual': 'sinnlich',
-            'elegante': 'elegant', 'divertida': 'lustig', 'divertido': 'lustig'
-        },
-        'es_to_ru': {
-            'foto': 'фото', 'imagen': 'изображение', 'video': 'видео', 'contenido': 'контент',
-            'exclusivo': 'эксклюзивный', 'premium': 'премиум', 'gratis': 'бесплатно', 'nuevo': 'новый',
-            'especial': 'специальный', 'único': 'уникальный', 'increíble': 'невероятный', 'hermoso': 'красивый',
-            'hermosa': 'красивая', 'mujer': 'женщина', 'chica': 'девушка', 'niña': 'девочка', 'hombre': 'мужчина',
-            'chico': 'парень', 'niño': 'мальчик', 'calidad': 'качество', 'alta calidad': 'высокое качество',
-            'colección': 'коллекция', 'serie': 'серия', 'pack': 'пакет', 'bundle': 'набор',
-            'linda': 'милая', 'bonita': 'красивая', 'sexy': 'сексуальная', 'sensual': 'чувственная',
-            'elegante': 'элегантная', 'divertida': 'веселая', 'divertido': 'веселый'
-        },
-        'es_to_hi': {
-            'foto': 'फोटो', 'imagen': 'तस्वीर', 'video': 'वीडियो', 'contenido': 'सामग्री',
-            'exclusivo': 'विशेष', 'premium': 'प्रीमियम', 'gratis': 'मुफ्त', 'nuevo': 'नया',
-            'especial': 'विशेष', 'único': 'अनोखा', 'increíble': 'अविश्वसनीय', 'hermoso': 'सुंदर',
-            'hermosa': 'सुंदर', 'mujer': 'महिला', 'chica': 'लड़की', 'niña': 'बच्ची', 'hombre': 'आदमी',
-            'chico': 'लड़का', 'niño': 'बच्चा', 'calidad': 'गुणवत्ता', 'alta calidad': 'उच्च गुणवत्ता',
-            'colección': 'संग्रह', 'serie': 'श्रृंखला', 'pack': 'पैक', 'bundle': 'बंडल',
-            'linda': 'प्यारी', 'bonita': 'सुंदर', 'sexy': 'सेक्सी', 'sensual': 'कामुक',
-            'elegante': 'सुरुचिपूर्ण', 'divertida': 'मजेदार', 'divertido': 'मजेदार'
-        },
-        'es_to_ar': {
-            'foto': 'صورة', 'imagen': 'صورة', 'video': 'فيديو', 'contenido': 'محتوى',
-            'exclusivo': 'حصري', 'premium': 'مميز', 'gratis': 'مجاني', 'nuevo': 'جديد',
-            'especial': 'خاص', 'único': 'فريد', 'increíble': 'لا يصدق', 'hermoso': 'جميل',
-            'hermosa': 'جميلة', 'mujer': 'امرأة', 'chica': 'فتاة', 'niña': 'طفلة', 'hombre': 'رجل',
-            'chico': 'شاب', 'niño': 'طفل', 'calidad': 'جودة', 'alta calidad': 'جودة عالية',
-            'colección': 'مجموعة', 'serie': 'سلسلة', 'pack': 'حزمة', 'bundle': 'مجموعة',
-            'linda': 'جميلة', 'bonita': 'جميلة', 'sexy': 'مثيرة', 'sensual': 'حسية',
-            'elegante': 'أنيقة', 'divertida': 'مسلية', 'divertido': 'مسلي'
-        }
-    }
-    
-    # Aplicar traducciones básicas
-    translation_key = f"{source_language}_to_{target_language}"
-    if translation_key in common_translations:
-        translated = text.lower()  # Convertir a minúsculas para matching
-        original_case = text  # Guardar texto original para preservar mayúsculas
-        
-        # Aplicar traducciones (case insensitive)
-        for original, translation in common_translations[translation_key].items():
-            translated = translated.replace(original.lower(), translation.lower())
-        
-        # Si hubo cambios, retornar la traducción; sino, texto original
-        if translated != text.lower():
-            # Capitalizar primera letra si el original la tenía
-            if original_case and original_case[0].isupper():
-                translated = translated[0].upper() + translated[1:] if translated else translated
-            return translated
-    
-    # Fallback: devolver texto original sin sufijos molestos
-    return text if text else "Content"
 
 class ContentBot:
     def __init__(self):
@@ -890,12 +158,6 @@ class ContentBot:
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             title TEXT NOT NULL,
             description TEXT,
-            description_en TEXT,
-            description_fr TEXT,
-            description_pt TEXT,
-            description_it TEXT,
-            description_de TEXT,
-            original_language TEXT DEFAULT 'es',
             media_type TEXT,
             media_file_id TEXT,
             price_stars INTEGER DEFAULT 0,
@@ -903,44 +165,6 @@ class ContentBot:
             is_active BOOLEAN DEFAULT 1
         )
         ''')
-        
-        # Agregar columnas a tabla existente si no existen
-        try:
-            cursor.execute('ALTER TABLE content ADD COLUMN description_en TEXT')
-        except:
-            pass
-        try:
-            cursor.execute('ALTER TABLE content ADD COLUMN description_fr TEXT')
-        except:
-            pass
-        try:
-            cursor.execute('ALTER TABLE content ADD COLUMN description_pt TEXT')
-        except:
-            pass
-        try:
-            cursor.execute('ALTER TABLE content ADD COLUMN description_it TEXT')
-        except:
-            pass
-        try:
-            cursor.execute('ALTER TABLE content ADD COLUMN description_de TEXT')
-        except:
-            pass
-        try:
-            cursor.execute('ALTER TABLE content ADD COLUMN description_ru TEXT')
-        except:
-            pass
-        try:
-            cursor.execute('ALTER TABLE content ADD COLUMN description_hi TEXT')
-        except:
-            pass
-        try:
-            cursor.execute('ALTER TABLE content ADD COLUMN description_ar TEXT')
-        except:
-            pass
-        try:
-            cursor.execute('ALTER TABLE content ADD COLUMN original_language TEXT DEFAULT "es"')
-        except:
-            pass
         
         # Tabla de usuarios
         cursor.execute('''
@@ -977,16 +201,6 @@ class ContentBot:
         )
         ''')
         
-        # Tabla de preferencias de usuario (para idiomas)
-        cursor.execute('''
-        CREATE TABLE IF NOT EXISTS user_preferences (
-            user_id INTEGER PRIMARY KEY,
-            language TEXT DEFAULT 'es',
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (user_id) REFERENCES users (user_id)
-        )
-        ''')
-        
         # Insertar mensaje de ayuda predeterminado si no existe
         cursor.execute('''
         INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)
@@ -1004,27 +218,6 @@ class ContentBot:
 
 ❓ *¿Necesitas ayuda?*
 Si tienes problemas, contacta al administrador del canal.'''))
-        
-        # Actualizar contenido existente con traducciones si no las tienen
-        cursor.execute('SELECT id, description FROM content WHERE description_en IS NULL OR description_en = ""')
-        content_to_translate = cursor.fetchall()
-        
-        for content_id, description in content_to_translate:
-            if description:
-                # Crear traducciones a todos los idiomas
-                desc_en = translate_text(description, 'en', 'es')
-                desc_fr = translate_text(description, 'fr', 'es') 
-                desc_pt = translate_text(description, 'pt', 'es')
-                desc_it = translate_text(description, 'it', 'es')
-                desc_de = translate_text(description, 'de', 'es')
-                
-                cursor.execute('''UPDATE content SET 
-                                 description_en = ?, description_fr = ?, description_pt = ?, 
-                                 description_it = ?, description_de = ? WHERE id = ?''', 
-                              (desc_en, desc_fr, desc_pt, desc_it, desc_de, content_id))
-        
-        if content_to_translate:
-            logger.info(f"Traducidas {len(content_to_translate)} descripciones de contenido existente")
         
         conn.commit()
         conn.close()
@@ -1054,48 +247,6 @@ Si tienes problemas, contacta al administrador del canal.'''))
         conn.commit()
         conn.close()
     
-    def get_user_language(self, user_id: int) -> str:
-        """Obtiene el idioma preferido del usuario"""
-        conn = sqlite3.connect(DATABASE_NAME)
-        cursor = conn.cursor()
-        
-        cursor.execute('SELECT language FROM user_preferences WHERE user_id = ?', (user_id,))
-        result = cursor.fetchone()
-        
-        language = result[0] if result else 'es'  # Español por defecto
-        
-        # Log para diagnosticar
-        if not result:
-            logger.warning(f"Usuario {user_id} no tiene idioma configurado, usando español por defecto")
-        else:
-            logger.info(f"Usuario {user_id} idioma configurado: {language}")
-        
-        conn.close()
-        return language
-    
-    def set_user_language(self, user_id: int, language: str):
-        """Establece el idioma preferido del usuario"""
-        conn = sqlite3.connect(DATABASE_NAME)
-        cursor = conn.cursor()
-        
-        cursor.execute('''
-        INSERT OR REPLACE INTO user_preferences (user_id, language)
-        VALUES (?, ?)
-        ''', (user_id, language))
-        
-        conn.commit()
-        conn.close()
-    
-    def has_user_language(self, user_id: int) -> bool:
-        """Verifica si el usuario ya tiene idioma configurado"""
-        conn = sqlite3.connect(DATABASE_NAME)
-        cursor = conn.cursor()
-        
-        cursor.execute('SELECT 1 FROM user_preferences WHERE user_id = ?', (user_id,))
-        result = cursor.fetchone()
-        
-        conn.close()
-        return result is not None
 
     def get_content_list(self, user_id: Optional[int] = None) -> List[Dict]:
         """Obtiene la lista de contenido disponible"""
@@ -1105,9 +256,7 @@ Si tienes problemas, contacta al administrador del canal.'''))
         if user_id and not self.is_admin(user_id):
             # Solo contenido activo para usuarios normales
             cursor.execute('''
-            SELECT id, title, description, description_en, description_fr, description_pt, 
-                   description_it, description_de, description_ru, description_hi, 
-                   description_ar, media_type, media_file_id, price_stars
+            SELECT id, title, description, media_type, media_file_id, price_stars
             FROM content 
             WHERE is_active = 1
             ORDER BY created_at ASC
@@ -1115,9 +264,7 @@ Si tienes problemas, contacta al administrador del canal.'''))
         else:
             # Todo el contenido para admin
             cursor.execute('''
-            SELECT id, title, description, description_en, description_fr, description_pt, 
-                   description_it, description_de, description_ru, description_hi, 
-                   description_ar, media_type, media_file_id, price_stars, is_active
+            SELECT id, title, description, media_type, media_file_id, price_stars, is_active
             FROM content 
             ORDER BY created_at ASC
             ''')
@@ -1126,7 +273,7 @@ Si tienes problemas, contacta al administrador del canal.'''))
         for row in cursor.fetchall():
             # Extraer descripción limpia para media_group
             description = row[2]
-            if row[11] == 'media_group':  # media_type es media_group
+            if row[3] == 'media_group':  # media_type es media_group
                 import json
                 try:
                     group_info = json.loads(row[2])
@@ -1139,35 +286,19 @@ Si tienes problemas, contacta al administrador del canal.'''))
                     'id': row[0],
                     'title': row[1],
                     'description': description,  # Descripción limpia
-                    'description_en': row[3],
-                    'description_fr': row[4],
-                    'description_pt': row[5],
-                    'description_it': row[6],
-                    'description_de': row[7],
-                    'description_ru': row[8],
-                    'description_hi': row[9],
-                    'description_ar': row[10],
-                    'media_type': row[11],
-                    'media_file_id': row[12],
-                    'price_stars': row[13]
+                    'media_type': row[3],
+                    'media_file_id': row[4],
+                    'price_stars': row[5]
                 })
             else:
                 content.append({
                     'id': row[0],
                     'title': row[1],
                     'description': description,  # Descripción limpia
-                    'description_en': row[3],
-                    'description_fr': row[4],
-                    'description_pt': row[5],
-                    'description_it': row[6],
-                    'description_de': row[7],
-                    'description_ru': row[8],
-                    'description_hi': row[9],
-                    'description_ar': row[10],
-                    'media_type': row[11],
-                    'media_file_id': row[12],
-                    'price_stars': row[13],
-                    'is_active': row[14]
+                    'media_type': row[3],
+                    'media_file_id': row[4],
+                    'price_stars': row[5],
+                    'is_active': row[6]
                 })
         
         conn.close()
@@ -1185,25 +316,10 @@ Si tienes problemas, contacta al administrador del canal.'''))
         cursor = conn.cursor()
         
         try:
-            # Traducir descripción automáticamente a TODOS los idiomas
-            description_en = translate_text(description, 'en', 'es')
-            description_fr = translate_text(description, 'fr', 'es')
-            description_pt = translate_text(description, 'pt', 'es')
-            description_it = translate_text(description, 'it', 'es')
-            description_de = translate_text(description, 'de', 'es')
-            description_ru = translate_text(description, 'ru', 'es')
-            description_hi = translate_text(description, 'hi', 'es')
-            description_ar = translate_text(description, 'ar', 'es')
-            
             cursor.execute('''
-            INSERT INTO content (title, description, description_en, description_fr, 
-                               description_pt, description_it, description_de, description_ru,
-                               description_hi, description_ar, original_language, 
-                               media_type, media_file_id, price_stars)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ''', (title, description, description_en, description_fr, description_pt, 
-                 description_it, description_de, description_ru, description_hi, 
-                 description_ar, 'es', media_type, media_file_id, price_stars))
+            INSERT INTO content (title, description, media_type, media_file_id, price_stars)
+            VALUES (?, ?, ?, ?, ?)
+            ''', (title, description, media_type, media_file_id, price_stars))
             
             content_id = cursor.lastrowid
             conn.commit()
@@ -1663,12 +779,11 @@ async def send_channel_post(update: Update, context: ContextTypes.DEFAULT_TYPE, 
     """Envía una publicación individual como si fuera de un canal"""
     chat_id = update.effective_chat.id if update.effective_chat else user_id
     
-    # Obtener descripción en el idioma del usuario
-    user_language = content_bot.get_user_language(user_id)
-    caption = get_content_description(content, user_language)
+    # Obtener descripción del contenido
+    caption = content.get("description", content.get("title", "Sin descripción"))
     
-    # Log para diagnosticar el idioma usado
-    logger.info(f"Enviando contenido ID {content['id']} a usuario {user_id} en idioma '{user_language}'")
+    # Log para diagnosticar el envío
+    logger.info(f"Enviando contenido ID {content['id']} a usuario {user_id}")
     
     # Verificar si el usuario ya compró el contenido
     has_purchased = content_bot.has_purchased_content(user_id, content['id'])
@@ -1896,8 +1011,7 @@ async def send_channel_post(update: Update, context: ContextTypes.DEFAULT_TYPE, 
             # Para documentos, usar mensaje de texto con botón de pago manual
             stars_text = f"⭐ {content['price_stars']} estrellas"
             # Usar descripción traducida para documento premium bloqueado
-            user_language = content_bot.get_user_language(user_id)
-            description_text = get_content_description(content, user_language)
+            description_text = content.get("description", content.get("title", "Sin descripción"))
             blocked_text = f"{stars_text}\n\n🔒 **{content['title']}**\n\n_Documento premium_\n\n{description_text}"
             
             keyboard = [[InlineKeyboardButton(
@@ -1934,55 +1048,20 @@ async def send_channel_post(update: Update, context: ContextTypes.DEFAULT_TYPE, 
 content_bot = ContentBot()
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Comando /start - Simula la experiencia de un canal con selección de idioma"""
+    """Comando /start - Simula la experiencia de un canal tradicional"""
     user = update.effective_user
     if not user or not update.message:
         return
     
-    # Log para diagnosticar language_code original del dispositivo
-    device_lang = user.language_code
-    logger.info(f"🔍 DIAGNÓSTICO /start - Usuario {user.id}: device_language_code='{device_lang}'")
     
     # Registrar usuario silenciosamente
     content_bot.register_user(
         user.id, user.username or '', user.first_name or '', user.last_name or ''
     )
     
-    # Verificar si ya tiene idioma configurado
-    stored_lang = content_bot.get_user_language(user.id) if content_bot.has_user_language(user.id) else None
-    logger.info(f"🔍 STORED vs DEVICE - Usuario {user.id}: stored='{stored_lang}' device='{device_lang}'")
-    
-    if not content_bot.has_user_language(user.id):
-        # Si no hay idioma guardado pero hay language_code del dispositivo, usar como hint
-        if device_lang:
-            base_device_lang = device_lang.split('-')[0].lower()
-            logger.info(f"🔍 HINT - Usuario {user.id}: dispositivo sugiere '{base_device_lang}'")
-        
-        # Mostrar selección de idioma
-        keyboard = [
-            [InlineKeyboardButton("🇪🇸 Español", callback_data="set_language_es"), 
-             InlineKeyboardButton("🇺🇸 English", callback_data="set_language_en")],
-            [InlineKeyboardButton("🇫🇷 Français", callback_data="set_language_fr"), 
-             InlineKeyboardButton("🇧🇷 Português", callback_data="set_language_pt")],
-            [InlineKeyboardButton("🇮🇹 Italiano", callback_data="set_language_it"), 
-             InlineKeyboardButton("🇩🇪 Deutsch", callback_data="set_language_de")],
-            [InlineKeyboardButton("🇷🇺 Русский", callback_data="set_language_ru"), 
-             InlineKeyboardButton("🇮🇳 हिन्दी", callback_data="set_language_hi")],
-            [InlineKeyboardButton("🇸🇦 العربية", callback_data="set_language_ar")]
-        ]
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        
-        await update.message.reply_text(
-            "🌐 **¡Bienvenido! / Welcome!**\n\n"
-            "¿En qué idioma prefieres usar el bot?\n"
-            "Which language would you prefer to use the bot in?",
-            reply_markup=reply_markup,
-            parse_mode='Markdown'
-        )
-    else:
-        # Ya tiene idioma, enviar publicaciones directamente
-        logger.info(f"✅ Usuario {user.id} ya configurado con idioma '{stored_lang}', enviando contenido")
-        await send_all_posts(update, context)
+    # Enviar publicaciones directamente (experiencia de canal)
+    logger.info(f"✅ Usuario {user.id} accediendo al contenido del canal")
+    await send_all_posts(update, context)
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Comando /ayuda"""
@@ -2007,31 +1086,6 @@ Si tienes problemas, contacta al administrador del canal.''')
     
     await update.message.reply_text(help_text, parse_mode='Markdown')
 
-async def language_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Comando /idioma - Cambiar idioma"""
-    if not update.message or not update.effective_user:
-        return
-        
-    keyboard = [
-        [InlineKeyboardButton("🇪🇸 Español", callback_data="set_language_es"), 
-         InlineKeyboardButton("🇺🇸 English", callback_data="set_language_en")],
-        [InlineKeyboardButton("🇫🇷 Français", callback_data="set_language_fr"), 
-         InlineKeyboardButton("🇧🇷 Português", callback_data="set_language_pt")],
-        [InlineKeyboardButton("🇮🇹 Italiano", callback_data="set_language_it"), 
-         InlineKeyboardButton("🇩🇪 Deutsch", callback_data="set_language_de")],
-        [InlineKeyboardButton("🇷🇺 Русский", callback_data="set_language_ru"), 
-         InlineKeyboardButton("🇮🇳 हिन्दी", callback_data="set_language_hi")],
-        [InlineKeyboardButton("🇸🇦 العربية", callback_data="set_language_ar")]
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    
-    await update.message.reply_text(
-        "🌐 **Cambiar idioma / Change language**\n\n"
-        "Selecciona tu idioma preferido:\n"
-        "Select your preferred language:",
-        reply_markup=reply_markup,
-        parse_mode='Markdown'
-    )
 
 async def catalog_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Comando /catalogo"""
@@ -2154,36 +1208,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
     context.processed_callbacks.add(callback_id)
     
-    # === CALLBACKS DE SELECCIÓN DE IDIOMA ===
-    if data.startswith("set_language_"):
-        language = data.split("_")[2]  # 'es' or 'en'
-        
-        # Log para diagnosticar la selección manual vs dispositivo
-        user_obj = query.from_user
-        device_lang_callback = user_obj.language_code if user_obj else None
-        logger.info(f"🔍 SELECCIÓN MANUAL - Usuario {user_id}: seleccionó='{language}' dispositivo='{device_lang_callback}'")
-        
-        content_bot.set_user_language(user_id, language)
-        logger.info(f"✅ Idioma guardado exitosamente para usuario {user_id}: '{language}'")
-        
-        # Mensaje de confirmación traducido
-        language_messages = {
-            'es': "✅ **Idioma configurado**\n\n¡Perfecto! Ahora usarás el bot en español.",
-            'en': "✅ **Language configured**\n\nPerfect! Now you'll use the bot in English.",
-            'fr': "✅ **Langue configurée**\n\nParfait ! Vous utiliserez maintenant le bot en français.",
-            'pt': "✅ **Idioma configurado**\n\nPerfeito! Agora você usará o bot em português.",
-            'it': "✅ **Lingua configurata**\n\nPerfetto! Ora userai il bot in italiano.",
-            'de': "✅ **Sprache konfiguriert**\n\nPerfekt! Sie werden den Bot jetzt auf Deutsch verwenden.",
-            'ru': "✅ **Язык настроен**\n\nОтлично! Теперь вы будете использовать бота на русском языке.",
-            'hi': "✅ **भाषा कॉन्फ़िगर की गई**\n\nबहुत अच्छा! अब आप बॉट का उपयोग हिंदी में करेंगे।",
-            'ar': "✅ **تم تكوين اللغة**\n\nممتاز! الآن ستستخدم البوت باللغة العربية."
-        }
-        text = language_messages.get(language, language_messages['es'])
-        
-        await query.edit_message_text(text, parse_mode='Markdown')
-        
-        # NO enviar publicaciones automáticamente al cambiar idioma
-        return
+
 
 # Función auxiliar para enviar posts desde callback
 async def send_all_posts_callback(query, context: ContextTypes.DEFAULT_TYPE, user_id: int):
@@ -2236,36 +1261,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
     context.processed_callbacks.add(callback_id)
     
-    # === CALLBACKS DE SELECCIÓN DE IDIOMA ===
-    if data.startswith("set_language_"):
-        language = data.split("_")[2]  # 'es' or 'en'
-        
-        # Log para diagnosticar la selección manual vs dispositivo
-        user_obj = query.from_user
-        device_lang_callback = user_obj.language_code if user_obj else None
-        logger.info(f"🔍 SELECCIÓN MANUAL - Usuario {user_id}: seleccionó='{language}' dispositivo='{device_lang_callback}'")
-        
-        content_bot.set_user_language(user_id, language)
-        logger.info(f"✅ Idioma guardado exitosamente para usuario {user_id}: '{language}'")
-        
-        # Mensaje de confirmación traducido
-        language_messages = {
-            'es': "✅ **Idioma configurado**\n\n¡Perfecto! Ahora usarás el bot en español.",
-            'en': "✅ **Language configured**\n\nPerfect! Now you'll use the bot in English.",
-            'fr': "✅ **Langue configurée**\n\nParfait ! Vous utiliserez maintenant le bot en français.",
-            'pt': "✅ **Idioma configurado**\n\nPerfeito! Agora você usará o bot em português.",
-            'it': "✅ **Lingua configurata**\n\nPerfetto! Ora userai il bot in italiano.",
-            'de': "✅ **Sprache konfiguriert**\n\nPerfekt! Sie werden den Bot jetzt auf Deutsch verwenden.",
-            'ru': "✅ **Язык настроен**\n\nОтлично! Теперь вы будете использовать бота на русском языке.",
-            'hi': "✅ **भाषा कॉन्फ़िगर की गई**\n\nबहुत अच्छा! अब आप बॉट का उपयोग हिंदी में करेंगे।",
-            'ar': "✅ **تم تكوين اللغة**\n\nممتاز! الآن ستستخدم البوت باللغة العربية."
-        }
-        text = language_messages.get(language, language_messages['es'])
-        
-        await query.edit_message_text(text, parse_mode='Markdown')
-        
-        # NO enviar publicaciones automáticamente al cambiar idioma
-        return
+
     
     if data.startswith("unlock_"):
         content_id = int(data.split("_")[1])
@@ -2289,7 +1285,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await context.bot.send_invoice(
             chat_id=user_id,
             title=f"🌟 {content['title']}",
-            description=get_content_description(content, content_bot.get_user_language(user_id)),
+            description=content['description'],
             payload=f"content_{content_id}",
             provider_token="",  # Para estrellas de Telegram, se deja vacío
             currency="XTR",  # XTR es para estrellas de Telegram
@@ -3753,8 +2749,7 @@ async def successful_payment(update: Update, context: ContextTypes.DEFAULT_TYPE)
         )
         
         # Reenviar el contenido sin spoiler con descripción traducida
-        user_language = content_bot.get_user_language(user_id)
-        caption = get_content_description(content, user_language)
+        caption = content.get("description", content.get("title", "Sin descripción"))
         
         if content['media_type'] == 'photo':
             await context.bot.send_photo(
@@ -3837,7 +2832,6 @@ def main():
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("catalogo", catalog_command))
     application.add_handler(CommandHandler("ayuda", help_command))
-    application.add_handler(CommandHandler("idioma", language_command))
     
     # Comandos de administración (ocultos para usuarios normales)
     application.add_handler(CommandHandler("admin", admin_command))
