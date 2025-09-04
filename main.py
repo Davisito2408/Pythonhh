@@ -606,13 +606,11 @@ async def send_channel_post(update: Update, context: ContextTypes.DEFAULT_TYPE, 
                 # Deserializar los archivos del grupo
                 group_info = json.loads(content['description'])
                 files = group_info.get('files', [])
-                group_description = group_info.get('description', '')
-                group_caption = f"**{content['title']}**\n\n{group_description}"
                 
                 # Convertir a InputMedia*
                 media_items = []
                 for i, file_data in enumerate(files):
-                    caption_text = group_caption if i == 0 else None  # Solo primer archivo lleva caption
+                    caption_text = caption if i == 0 else None  # Solo primer archivo lleva caption
                     if file_data['type'] == 'photo':
                         media_items.append(InputMediaPhoto(
                             media=file_data['file_id'],
