@@ -189,7 +189,7 @@ def translate_text(text: str, target_language: str, source_language: str = 'es')
     # Diccionario básico de traducciones comunes para mejorar calidad
     common_translations = {
         'es_to_en': {
-            # Palabras comunes en descripciones
+            # Palabras y frases comunes en descripciones
             'foto': 'photo',
             'imagen': 'image', 
             'video': 'video',
@@ -202,12 +202,26 @@ def translate_text(text: str, target_language: str, source_language: str = 'es')
             'único': 'unique',
             'increíble': 'amazing',
             'hermoso': 'beautiful',
+            'hermosa': 'beautiful',
+            'mujer': 'woman',
+            'chica': 'girl',
+            'niña': 'girl',
+            'hombre': 'man',
+            'chico': 'guy',
+            'niño': 'boy',
             'calidad': 'quality',
             'alta calidad': 'high quality',
             'colección': 'collection',
             'serie': 'series',
             'pack': 'pack',
-            'bundle': 'bundle'
+            'bundle': 'bundle',
+            'linda': 'cute',
+            'bonita': 'pretty',
+            'sexy': 'sexy',
+            'sensual': 'sensual',
+            'elegante': 'elegant',
+            'divertida': 'fun',
+            'divertido': 'fun'
         },
         'en_to_es': {
             'photo': 'foto',
@@ -234,12 +248,26 @@ def translate_text(text: str, target_language: str, source_language: str = 'es')
     # Aplicar traducciones básicas
     translation_key = f"{source_language}_to_{target_language}"
     if translation_key in common_translations:
-        translated = text
+        translated = text.lower()  # Convertir a minúsculas para matching
+        original_case = text  # Guardar texto original para preservar mayúsculas
+        
+        # Aplicar traducciones (case insensitive)
         for original, translation in common_translations[translation_key].items():
-            translated = translated.replace(original, translation)
-        return translated
+            translated = translated.replace(original.lower(), translation.lower())
+        
+        # Si hubo cambios, retornar la traducción; sino, texto original
+        if translated != text.lower():
+            # Capitalizar primera letra si el original la tenía
+            if original_case and original_case[0].isupper():
+                translated = translated[0].upper() + translated[1:] if translated else translated
+            return translated
     
-    # Si no hay diccionario disponible, retornar texto original
+    # Fallback: Si no se pudo traducir, agregar sufijo para identificar el idioma
+    if source_language == 'es' and target_language == 'en':
+        return f"{text} (EN)"
+    elif source_language == 'en' and target_language == 'es':
+        return f"{text} (ES)"
+    
     return text
 
 class ContentBot:
@@ -940,7 +968,12 @@ async def send_channel_post(update: Update, context: ContextTypes.DEFAULT_TYPE, 
                 group_info = json.loads(content['description'])
                 files = group_info.get('files', [])
                 # SIMPLIFICADO: solo título para sendPaidMedia también
-                final_caption = content['description']
+                # Obtener descripción traducida para grupos pagados
+                user_language = content_bot.get_user_language(user_id)
+                if user_language == 'en' and content.get('description_en'):
+                    final_caption = content['description_en']
+                else:
+                    final_caption = content['description']
                 
                 # Convertir a InputPaidMedia*
                 paid_media_items = []
@@ -969,7 +1002,10 @@ async def send_channel_post(update: Update, context: ContextTypes.DEFAULT_TYPE, 
         elif content['media_type'] == 'document':
             # Para documentos, usar mensaje de texto con botón de pago manual
             stars_text = f"⭐ {content['price_stars']} estrellas"
-            blocked_text = f"{stars_text}\n\n🔒 **{content['title']}**\n\n_Documento premium_\n\n{content['description']}"
+            # Usar descripción traducida para documento premium bloqueado
+            user_language = content_bot.get_user_language(user_id)
+            description_text = content['description_en'] if user_language == 'en' and content.get('description_en') else content['description']
+            blocked_text = f"{stars_text}\n\n🔒 **{content['title']}**\n\n_Documento premium_\n\n{description_text}"
             
             keyboard = [[InlineKeyboardButton(
                 f"💰 Desbloquear por {content['price_stars']} ⭐", 
@@ -1290,7 +1326,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await context.bot.send_invoice(
             chat_id=user_id,
             title=f"🌟 {content['title']}",
-            description=content['description'],
+            description=content['description_en'] if content_bot.get_user_language(user_id) == 'en' and content.get('description_en') else content['description'],
             payload=f"content_{content_id}",
             provider_token="",  # Para estrellas de Telegram, se deja vacío
             currency="XTR",  # XTR es para estrellas de Telegram
@@ -2753,8 +2789,12 @@ async def successful_payment(update: Update, context: ContextTypes.DEFAULT_TYPE)
             parse_mode='Markdown'
         )
         
-        # Reenviar el contenido sin spoiler
-        caption = content['description']
+        # Reenviar el contenido sin spoiler con descripción traducida
+        user_language = content_bot.get_user_language(user_id)
+        if user_language == 'en' and content.get('description_en'):
+            caption = content['description_en']
+        else:
+            caption = content['description']
         
         if content['media_type'] == 'photo':
             await context.bot.send_photo(
