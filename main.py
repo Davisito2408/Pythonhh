@@ -1053,13 +1053,6 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             del context.user_data['waiting_for']
     
     # === NUEVOS CALLBACKS PARA GRUPOS DE ARCHIVOS ===
-    elif data == "setup_group_title":
-        context.user_data['waiting_for'] = 'group_title'
-        await query.edit_message_text(
-            "✏️ **Título del Grupo**\n\n"
-            "Envía el título para todo el grupo de archivos:",
-            parse_mode='Markdown'
-        )
     
     elif data == "setup_group_description":
         context.user_data['waiting_for'] = 'group_description'
@@ -1816,28 +1809,6 @@ async def handle_text_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
     
     # === NUEVOS HANDLERS PARA GRUPOS ===
-    elif waiting_for == 'group_title':
-        context.user_data['media_group']['title'] = update.message.text
-        await update.message.reply_text(
-            f"✅ **Título del grupo establecido:** {update.message.text}\n\n"
-            f"Ahora puedes continuar configurando tu grupo:",
-            parse_mode='Markdown'
-        )
-        del context.user_data['waiting_for']
-        
-        # Mostrar preview del grupo actualizado
-        keyboard = [
-            [InlineKeyboardButton("✏️ Cambiar Título", callback_data="setup_group_title")],
-            [InlineKeyboardButton("📝 Establecer Descripción", callback_data="setup_group_description")],
-            [InlineKeyboardButton("💰 Establecer Precio", callback_data="setup_group_price")],
-            [InlineKeyboardButton("✅ Publicar Grupo", callback_data="publish_group")],
-            [InlineKeyboardButton("❌ Cancelar", callback_data="cancel_upload")]
-        ]
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        await update.message.reply_text(
-            "Continuar configuración del grupo:",
-            reply_markup=reply_markup
-        )
     
     elif waiting_for == 'group_description':
         context.user_data['media_group']['description'] = update.message.text
@@ -1850,7 +1821,6 @@ async def handle_text_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         # Mostrar preview del grupo actualizado
         keyboard = [
-            [InlineKeyboardButton("✏️ Establecer Título", callback_data="setup_group_title")],
             [InlineKeyboardButton("📝 Cambiar Descripción", callback_data="setup_group_description")],
             [InlineKeyboardButton("💰 Establecer Precio", callback_data="setup_group_price")],
             [InlineKeyboardButton("✅ Publicar Grupo", callback_data="publish_group")],
@@ -1879,7 +1849,7 @@ async def handle_text_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
             
             # Mostrar preview del grupo actualizado
             keyboard = [
-                [InlineKeyboardButton("✏️ Establecer Título", callback_data="setup_group_title")],
+    
                 [InlineKeyboardButton("📝 Establecer Descripción", callback_data="setup_group_description")],
                 [InlineKeyboardButton("💰 Cambiar Precio", callback_data="setup_group_price")],
                 [InlineKeyboardButton("✅ Publicar Grupo", callback_data="publish_group")],
