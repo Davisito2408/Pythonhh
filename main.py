@@ -96,6 +96,33 @@ class ContentBot:
         )
         ''')
         
+        # Tabla de configuraciones
+        cursor.execute('''
+        CREATE TABLE IF NOT EXISTS settings (
+            key TEXT PRIMARY KEY,
+            value TEXT,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+        ''')
+        
+        # Insertar mensaje de ayuda predeterminado si no existe
+        cursor.execute('''
+        INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)
+        ''', ('help_message', '''📋 **Comandos Disponibles:**
+
+🎬 *Para usuarios:*
+/start - Mensaje de bienvenida
+/catalogo - Ver contenido disponible
+/ayuda - Esta ayuda
+
+💫 *Sobre las estrellas:*
+• Las estrellas ⭐ son la moneda oficial de Telegram
+• Se compran directamente en Telegram
+• Permiten acceder a contenido premium
+
+❓ *¿Necesitas ayuda?*
+Si tienes problemas, contacta al administrador del canal.'''))
+        
         conn.commit()
         conn.close()
         logger.info("Base de datos inicializada correctamente")
@@ -198,6 +225,35 @@ class ContentBot:
         result = cursor.fetchone()[0] > 0
         conn.close()
         return result
+    
+    def get_setting(self, key: str, default_value: str = "") -> str:
+        """Obtiene una configuración de la base de datos"""
+        conn = sqlite3.connect(DATABASE_NAME)
+        cursor = conn.cursor()
+        
+        cursor.execute('SELECT value FROM settings WHERE key = ?', (key,))
+        result = cursor.fetchone()
+        
+        conn.close()
+        return result[0] if result else default_value
+    
+    def set_setting(self, key: str, value: str) -> bool:
+        """Guarda una configuración en la base de datos"""
+        try:
+            conn = sqlite3.connect(DATABASE_NAME)
+            cursor = conn.cursor()
+            
+            cursor.execute('''
+            INSERT OR REPLACE INTO settings (key, value, updated_at)
+            VALUES (?, ?, CURRENT_TIMESTAMP)
+            ''', (key, value))
+            
+            conn.commit()
+            conn.close()
+            return True
+        except Exception as e:
+            logger.error(f"Error al guardar configuración: {e}")
+            return False
 
     def get_content_by_id(self, content_id: int) -> Optional[Dict]:
         """Obtiene contenido por ID"""
@@ -691,8 +747,8 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.message:
         return
         
-    help_text = """
-📋 **Comandos Disponibles:**
+    # Obtener mensaje personalizado de la base de datos
+    help_text = content_bot.get_setting('help_message', '''📋 **Comandos Disponibles:**
 
 🎬 *Para usuarios:*
 /start - Mensaje de bienvenida
@@ -705,11 +761,9 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 • Permiten acceder a contenido premium
 
 ❓ *¿Necesitas ayuda?*
-Si tienes problemas, contacta al administrador del canal.
-    """
+Si tienes problemas, contacta al administrador del canal.''')
     
-    if update.message:
-        await update.message.reply_text(help_text)
+    await update.message.reply_text(help_text, parse_mode='Markdown')
 
 async def catalog_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Comando /catalogo"""
@@ -762,7 +816,8 @@ async def admin_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("➕ Añadir Contenido", callback_data="admin_add_content")],
         [InlineKeyboardButton("📋 Gestionar Contenido", callback_data="admin_manage_content")],
         [InlineKeyboardButton("📊 Estadísticas", callback_data="admin_stats")],
-        [InlineKeyboardButton("⚙️ Configuración", callback_data="admin_settings")]
+        [InlineKeyboardButton("⚙️ Configuración", callback_data="admin_settings")],
+        [InlineKeyboardButton("✏️ Mensaje de Ayuda", callback_data="admin_help_message")]
     ]
     
     reply_markup = InlineKeyboardMarkup(keyboard)
@@ -932,12 +987,37 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 reply_markup=reply_markup
             )
         
+        elif data == "admin_help_message":
+            # Obtener mensaje actual
+            current_message = content_bot.get_setting('help_message', 'No configurado')
+            
+            keyboard = [
+                [InlineKeyboardButton("✏️ Cambiar Mensaje", callback_data="change_help_message")],
+                [InlineKeyboardButton("👀 Vista Previa", callback_data="preview_help_message")],
+                [InlineKeyboardButton("🔄 Restaurar Original", callback_data="reset_help_message")],
+                [InlineKeyboardButton("⬅️ Volver", callback_data="admin_back")]
+            ]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            
+            # Mostrar preview truncado
+            preview = current_message[:200] + "..." if len(current_message) > 200 else current_message
+            
+            await query.edit_message_text(
+                f"✏️ **Personalización del Mensaje de Ayuda**\n\n"
+                f"📝 **Mensaje actual:**\n"
+                f"```\n{preview}\n```\n\n"
+                f"Usa los botones para gestionar el mensaje:",
+                parse_mode='Markdown',
+                reply_markup=reply_markup
+            )
+        
         elif data == "admin_back":
             keyboard = [
                 [InlineKeyboardButton("➕ Añadir Contenido", callback_data="admin_add_content")],
                 [InlineKeyboardButton("📋 Gestionar Contenido", callback_data="admin_manage_content")],
                 [InlineKeyboardButton("📊 Estadísticas", callback_data="admin_stats")],
-                [InlineKeyboardButton("⚙️ Configuración", callback_data="admin_settings")]
+                [InlineKeyboardButton("⚙️ Configuración", callback_data="admin_settings")],
+                [InlineKeyboardButton("✏️ Mensaje de Ayuda", callback_data="admin_help_message")]
             ]
             reply_markup = InlineKeyboardMarkup(keyboard)
             
@@ -1474,6 +1554,78 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 parse_mode='Markdown'
             )
     
+    elif data == "change_help_message":
+        if not content_bot.is_admin(user_id):
+            await query.edit_message_text("❌ Sin permisos de administrador.")
+            return
+            
+        context.user_data['waiting_for'] = 'help_message'
+        await query.edit_message_text(
+            "✏️ **Cambiar Mensaje de Ayuda**\n\n"
+            "Envía el nuevo mensaje que quieres que aparezca cuando los usuarios usen /ayuda\n\n"
+            "💡 **Puedes usar formato Markdown:**\n"
+            "• **texto en negrita**\n"
+            "• *texto en cursiva*\n"
+            "• `código`\n"
+            "• Emojis 🎬 ⭐ 💫",
+            parse_mode='Markdown'
+        )
+    
+    elif data == "preview_help_message":
+        current_message = content_bot.get_setting('help_message', 'No hay mensaje configurado')
+        
+        keyboard = [[InlineKeyboardButton("⬅️ Volver", callback_data="admin_help_message")]]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        await query.edit_message_text(
+            f"👀 **Vista Previa del Mensaje de Ayuda**\n\n"
+            f"Este es el mensaje que ven los usuarios:\n\n"
+            f"--- INICIO DEL MENSAJE ---\n"
+            f"{current_message}\n"
+            f"--- FIN DEL MENSAJE ---",
+            parse_mode='Markdown',
+            reply_markup=reply_markup
+        )
+    
+    elif data == "reset_help_message":
+        if not content_bot.is_admin(user_id):
+            await query.edit_message_text("❌ Sin permisos de administrador.")
+            return
+            
+        # Restaurar mensaje original
+        default_message = '''📋 **Comandos Disponibles:**
+
+🎬 *Para usuarios:*
+/start - Mensaje de bienvenida
+/catalogo - Ver contenido disponible
+/ayuda - Esta ayuda
+
+💫 *Sobre las estrellas:*
+• Las estrellas ⭐ son la moneda oficial de Telegram
+• Se compran directamente en Telegram
+• Permiten acceder a contenido premium
+
+❓ *¿Necesitas ayuda?*
+Si tienes problemas, contacta al administrador del canal.'''
+        
+        if content_bot.set_setting('help_message', default_message):
+            keyboard = [[InlineKeyboardButton("⬅️ Volver", callback_data="admin_help_message")]]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            
+            await query.edit_message_text(
+                "✅ **Mensaje Restaurado**\n\n"
+                "El mensaje de ayuda ha sido restaurado al original.\n"
+                "Los usuarios verán el mensaje predeterminado cuando usen /ayuda",
+                parse_mode='Markdown',
+                reply_markup=reply_markup
+            )
+        else:
+            await query.edit_message_text(
+                "❌ **Error**\n\n"
+                "No se pudo restaurar el mensaje. Inténtalo de nuevo.",
+                parse_mode='Markdown'
+            )
+    
     elif data == "export_stats":
         if not content_bot.is_admin(user_id):
             await query.edit_message_text("❌ Sin permisos de administrador.")
@@ -1505,7 +1657,8 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             [InlineKeyboardButton("➕ Añadir Contenido", callback_data="admin_add_content")],
             [InlineKeyboardButton("📋 Gestionar Contenido", callback_data="admin_manage_content")],
             [InlineKeyboardButton("📊 Estadísticas", callback_data="admin_stats")],
-            [InlineKeyboardButton("⚙️ Configuración", callback_data="admin_settings")]
+            [InlineKeyboardButton("⚙️ Configuración", callback_data="admin_settings")],
+            [InlineKeyboardButton("✏️ Mensaje de Ayuda", callback_data="admin_help_message")]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
         
@@ -1897,6 +2050,28 @@ async def handle_text_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
         except ValueError:
             await update.message.reply_text("❌ Debes enviar un número válido. Inténtalo de nuevo:")
+    
+    elif waiting_for == 'help_message':
+        # Guardar el nuevo mensaje de ayuda
+        new_message = update.message.text
+        
+        if content_bot.set_setting('help_message', new_message):
+            await update.message.reply_text(
+                f"✅ **Mensaje de Ayuda Actualizado**\n\n"
+                f"El nuevo mensaje ha sido guardado exitosamente.\n"
+                f"Los usuarios ahora verán este mensaje cuando usen /ayuda\n\n"
+                f"💡 **Preview del mensaje:**\n"
+                f"{new_message[:150]}{'...' if len(new_message) > 150 else ''}",
+                parse_mode='Markdown'
+            )
+        else:
+            await update.message.reply_text(
+                "❌ **Error**\n\n"
+                "No se pudo guardar el mensaje. Inténtalo de nuevo.",
+                parse_mode='Markdown'
+            )
+        
+        del context.user_data['waiting_for']
 
 async def pre_checkout_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Maneja la verificación previa al pago"""
