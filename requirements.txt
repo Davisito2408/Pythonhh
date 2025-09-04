@@ -4,3 +4,7 @@ python-telegram-bot>=22.3
 python-dotenv>=1.0.0
 python-dotenv
 telegram
+aiofiles
+aiosqlite
+python-dotenv
+python-telegram-bot
