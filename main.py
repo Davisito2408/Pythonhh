@@ -1028,6 +1028,12 @@ Si tienes problemas, contacta al administrador del canal.'''))
         
         conn.commit()
         conn.close()
+        
+        # Limpiar contenido con file IDs inválidos al inicializar
+        deleted_count = self.clean_invalid_content()
+        if deleted_count > 0:
+            logger.info(f"Limpieza completada: {deleted_count} contenido(s) inválido(s) eliminado(s)")
+        
         logger.info("Base de datos inicializada correctamente")
 
     def is_admin(self, user_id: int) -> bool:
@@ -1162,6 +1168,11 @@ Si tienes problemas, contacta al administrador del canal.'''))
     def add_content(self, title: str, description: str, media_type: str, 
                    media_file_id: str, price_stars: int = 0) -> Optional[int]:
         """Añade nuevo contenido y devuelve el ID"""
+        # Validar file ID antes de guardar
+        if not self.validate_file_id(media_file_id):
+            logger.error(f"File ID inválido rechazado: '{media_file_id}'")
+            return None
+        
         conn = sqlite3.connect(DATABASE_NAME)
         cursor = conn.cursor()
         
@@ -1189,6 +1200,7 @@ Si tienes problemas, contacta al administrador del canal.'''))
             content_id = cursor.lastrowid
             conn.commit()
             conn.close()
+            logger.info(f"Contenido añadido exitosamente: ID {content_id}, file_id: {media_file_id[:20]}...")
             return content_id
         except Exception as e:
             logger.error(f"Error añadiendo contenido: {e}")
@@ -1294,6 +1306,92 @@ Si tienes problemas, contacta al administrador del canal.'''))
             logger.error(f"Error eliminando contenido {content_id}: {e}")
             conn.close()
             return False
+    
+    def clean_invalid_content(self) -> int:
+        """Limpia contenido con file IDs inválidos de la base de datos"""
+        conn = sqlite3.connect(DATABASE_NAME)
+        cursor = conn.cursor()
+        
+        try:
+            # Primero, revisar TODO el contenido para diagnosticar
+            cursor.execute('SELECT id, title, media_file_id, media_type FROM content WHERE is_active = 1')
+            all_content = cursor.fetchall()
+            
+            logger.info(f"Diagnosticando {len(all_content)} contenido(s) existente(s):")
+            
+            invalid_content = []
+            for content_id, title, file_id, media_type in all_content:
+                logger.info(f"  - ID {content_id}: '{title}' tipo:{media_type} file_id: '{file_id[:30] if file_id else 'NULL'}{'...' if file_id and len(file_id) > 30 else ''}")
+                
+                # Validar file ID
+                if not self.validate_file_id(file_id):
+                    invalid_content.append((content_id, title, file_id))
+                    logger.warning(f"    \u2192 INVALID: ID {content_id}")
+            
+            if invalid_content:
+                # Eliminar contenido inválido
+                invalid_ids = [str(row[0]) for row in invalid_content]
+                placeholders = ','.join(['?' for _ in invalid_ids])
+                cursor.execute(f'DELETE FROM content WHERE id IN ({placeholders})', invalid_ids)
+                
+                conn.commit()
+                deleted_count = len(invalid_content)
+                logger.info(f"\u2705 Eliminado {deleted_count} contenido(s) con file IDs inválidos")
+                
+                for content_id, title, file_id in invalid_content:
+                    logger.info(f"  - Eliminado ID {content_id}: '{title}'")
+                
+                conn.close()
+                return deleted_count
+            else:
+                conn.close()
+                logger.info("\u2705 Todos los file IDs son válidos")
+                return 0
+                
+        except Exception as e:
+            logger.error(f"Error limpiando contenido inválido: {e}")
+            conn.close()
+            return 0
+    
+    def clear_all_content(self) -> int:
+        """Elimina TODO el contenido existente (para empezar limpio)"""
+        conn = sqlite3.connect(DATABASE_NAME)
+        cursor = conn.cursor()
+        
+        try:
+            cursor.execute('SELECT COUNT(*) FROM content')
+            total_count = cursor.fetchone()[0]
+            
+            if total_count > 0:
+                cursor.execute('DELETE FROM content')
+                cursor.execute('DELETE FROM purchases')  # Limpiar compras también
+                conn.commit()
+                logger.info(f"\u2705 Eliminado TODO el contenido existente: {total_count} elemento(s)")
+            
+            conn.close()
+            return total_count
+        except Exception as e:
+            logger.error(f"Error eliminando todo el contenido: {e}")
+            conn.close()
+            return 0
+    
+    def validate_file_id(self, file_id: str) -> bool:
+        """Valida que un file ID sea válido"""
+        if not file_id or not isinstance(file_id, str):
+            return False
+        
+        # Los file IDs de Telegram tienen al menos 10 caracteres
+        if len(file_id) < 10:
+            return False
+        
+        # No debe contener palabras de error
+        error_keywords = ['error', 'invalid', 'null', 'undefined']
+        file_id_lower = file_id.lower()
+        for keyword in error_keywords:
+            if keyword in file_id_lower:
+                return False
+        
+        return True
     
     def get_all_users(self) -> List[int]:
         """Obtiene lista de todos los usuarios registrados"""
