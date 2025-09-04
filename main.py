@@ -168,11 +168,21 @@ Si tienes problemas, contacta al administrador del canal.'''))
         
         content = []
         for row in cursor.fetchall():
+            # Para media_group, deserializar la descripción del JSON
+            description = row[2]
+            if row[3] == 'media_group':  # media_type es media_group
+                import json
+                try:
+                    group_info = json.loads(row[2])
+                    description = group_info.get('description', '')
+                except:
+                    description = ''
+            
             if user_id and not self.is_admin(user_id):
                 content.append({
                     'id': row[0],
                     'title': row[1],
-                    'description': row[2],
+                    'description': description,
                     'media_type': row[3],
                     'media_file_id': row[4],
                     'price_stars': row[5]
@@ -181,7 +191,7 @@ Si tienes problemas, contacta al administrador del canal.'''))
                 content.append({
                     'id': row[0],
                     'title': row[1],
-                    'description': row[2],
+                    'description': description,
                     'media_type': row[3],
                     'media_file_id': row[4],
                     'price_stars': row[5],
@@ -560,18 +570,8 @@ async def send_channel_post(update: Update, context: ContextTypes.DEFAULT_TYPE, 
     """Envía una publicación individual como si fuera de un canal"""
     chat_id = update.effective_chat.id if update.effective_chat else user_id
     
-    # Para grupos de medios, extraer la descripción real del JSON
-    if content['media_type'] == 'media_group':
-        import json
-        try:
-            group_info = json.loads(content['description'])
-            real_description = group_info.get('description', '')
-        except:
-            real_description = ''
-        caption = f"**{content['title']}**\n\n{real_description}"
-    else:
-        # Formatear el caption como un canal premium para otros tipos
-        caption = f"**{content['title']}**\n\n{content['description']}"
+    # Formatear el caption como un canal premium
+    caption = f"**{content['title']}**\n\n{content['description']}"
     
     # Verificar si el usuario ya compró el contenido
     has_purchased = content_bot.has_purchased_content(user_id, content['id'])
