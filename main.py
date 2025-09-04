@@ -667,41 +667,58 @@ def escape_markdown(text: str) -> str:
     if not text:
         return ""
     
-    # Solo escapar caracteres que realmente causan problemas de parseo
-    # Mantener formateo básico como * y _ para negrita/cursiva si es deseado
-    problematic_chars = ['[', ']', '`', '>', '\\']
+    # Convertir a string si no lo es
+    text = str(text)
+    
+    # Remover caracteres especiales que causan problemas de parseo
+    # Mantener texto limpio y simple para evitar errores
+    problematic_chars = ['[', ']', '`', '>', '\\', '|', '{', '}', '!', '~', '#', '+']
     
     for char in problematic_chars:
-        text = text.replace(char, f'\\{char}')
+        text = text.replace(char, '')
     
-    return text
+    # Limpiar múltiples asteriscos o guiones bajos problemáticos
+    import re
+    text = re.sub(r'\*{3,}', '**', text)  # Reducir múltiples asteriscos
+    text = re.sub(r'_{3,}', '__', text)   # Reducir múltiples guiones bajos
+    
+    return text.strip()
 
 def get_content_description(content: dict, user_language: str) -> str:
     """Obtiene la descripción del contenido en el idioma del usuario"""
     description = ""
     
-    # Ahora el contenido viene con descripción limpia desde get_content_list
-    if user_language == 'en' and content.get('description_en'):
+    # Primero intentar obtener la descripción en el idioma solicitado
+    if user_language == 'en' and content.get('description_en') and content['description_en'].strip():
         description = content['description_en']
-    elif user_language == 'fr' and content.get('description_fr'):
+    elif user_language == 'fr' and content.get('description_fr') and content['description_fr'].strip():
         description = content['description_fr']
-    elif user_language == 'pt' and content.get('description_pt'):
+    elif user_language == 'pt' and content.get('description_pt') and content['description_pt'].strip():
         description = content['description_pt']
-    elif user_language == 'it' and content.get('description_it'):
+    elif user_language == 'it' and content.get('description_it') and content['description_it'].strip():
         description = content['description_it']
-    elif user_language == 'de' and content.get('description_de'):
+    elif user_language == 'de' and content.get('description_de') and content['description_de'].strip():
         description = content['description_de']
-    elif user_language == 'ru' and content.get('description_ru'):
+    elif user_language == 'ru' and content.get('description_ru') and content['description_ru'].strip():
         description = content['description_ru']
-    elif user_language == 'hi' and content.get('description_hi'):
+    elif user_language == 'hi' and content.get('description_hi') and content['description_hi'].strip():
         description = content['description_hi']
-    elif user_language == 'ar' and content.get('description_ar'):
+    elif user_language == 'ar' and content.get('description_ar') and content['description_ar'].strip():
         description = content['description_ar']
     else:
-        description = content.get('description', '')  # Fallback al español
+        # Fallback: usar descripción original y traducir básicamente
+        original_desc = content.get('description', '')
+        if original_desc and user_language != 'es':
+            description = translate_text(original_desc, user_language, 'es')
+        else:
+            description = original_desc
     
-    # Escapar solo caracteres realmente problemáticos
-    return escape_markdown(description)
+    # Si aún no hay descripción, usar el título
+    if not description or not description.strip():
+        description = content.get('title', 'Contenido sin descripción')
+    
+    # Limpiar la descripción
+    return escape_markdown(description.strip())
 
 # Función simple de traducción usando transformación básica
 def translate_text(text: str, target_language: str, source_language: str = 'es') -> str:
@@ -855,13 +872,8 @@ def translate_text(text: str, target_language: str, source_language: str = 'es')
                 translated = translated[0].upper() + translated[1:] if translated else translated
             return translated
     
-    # Fallback: Si no se pudo traducir, agregar sufijo para identificar el idioma
-    if source_language == 'es' and target_language == 'en':
-        return f"{text} (EN)"
-    elif source_language == 'en' and target_language == 'es':
-        return f"{text} (ES)"
-    
-    return text
+    # Fallback: devolver texto original sin sufijos molestos
+    return text if text else "Content"
 
 class ContentBot:
     def __init__(self):
@@ -1493,7 +1505,8 @@ async def broadcast_media_group(context: ContextTypes.DEFAULT_TYPE, content_id: 
                 
                 if paid_media_items:
                     # Usar send_paid_media nativo de Telegram
-                    caption = f"**{description}**"
+                    clean_description = escape_markdown(description)
+                    caption = f"**{clean_description}**"
                     await context.bot.send_paid_media(
                         chat_id=user_id,
                         star_count=price,
@@ -1622,25 +1635,55 @@ async def send_channel_post(update: Update, context: ContextTypes.DEFAULT_TYPE, 
     else:
         # Contenido de pago - usar funcionalidad nativa de Telegram
         if content['media_type'] == 'photo':
-            # Usar send_paid_media nativo para fotos
-            paid_media = [InputPaidMediaPhoto(media=content['media_file_id'])]
-            await context.bot.send_paid_media(
-                chat_id=chat_id,
-                star_count=content['price_stars'],
-                media=paid_media,
-                caption=caption,
-                parse_mode='Markdown'
-            )
+            try:
+                # Usar send_paid_media nativo para fotos
+                paid_media = [InputPaidMediaPhoto(media=content['media_file_id'])]
+                await context.bot.send_paid_media(
+                    chat_id=chat_id,
+                    star_count=content['price_stars'],
+                    media=paid_media,
+                    caption=escape_markdown(caption),
+                    parse_mode='Markdown'
+                )
+            except Exception as e:
+                logger.error(f"Error enviando foto pagada: {e}")
+                # Fallback a mensaje con botón
+                keyboard = [[InlineKeyboardButton(
+                    f"🔓 Desbloquear por {content['price_stars']} ⭐",
+                    callback_data=f"unlock_{content['id']}"
+                )]]
+                reply_markup = InlineKeyboardMarkup(keyboard)
+                await context.bot.send_message(
+                    chat_id=chat_id,
+                    text=f"🔒 **{escape_markdown(content['title'])}**\n\n{caption}\n\n💰 {content['price_stars']} estrellas",
+                    parse_mode='Markdown',
+                    reply_markup=reply_markup
+                )
         elif content['media_type'] == 'video':
-            # Usar send_paid_media nativo para videos
-            paid_media = [InputPaidMediaVideo(media=content['media_file_id'])]
-            await context.bot.send_paid_media(
-                chat_id=chat_id,
-                star_count=content['price_stars'],
-                media=paid_media,
-                caption=caption,
-                parse_mode='Markdown'
-            )
+            try:
+                # Usar send_paid_media nativo para videos
+                paid_media = [InputPaidMediaVideo(media=content['media_file_id'])]
+                await context.bot.send_paid_media(
+                    chat_id=chat_id,
+                    star_count=content['price_stars'],
+                    media=paid_media,
+                    caption=escape_markdown(caption),
+                    parse_mode='Markdown'
+                )
+            except Exception as e:
+                logger.error(f"Error enviando video pagado: {e}")
+                # Fallback a mensaje con botón
+                keyboard = [[InlineKeyboardButton(
+                    f"🔓 Desbloquear por {content['price_stars']} ⭐",
+                    callback_data=f"unlock_{content['id']}"
+                )]]
+                reply_markup = InlineKeyboardMarkup(keyboard)
+                await context.bot.send_message(
+                    chat_id=chat_id,
+                    text=f"🔒 **{escape_markdown(content['title'])}**\n\n{caption}\n\n💰 {content['price_stars']} estrellas",
+                    parse_mode='Markdown',
+                    reply_markup=reply_markup
+                )
         elif content['media_type'] == 'media_group':
             # Para grupos de medios pagados - necesitamos obtener los archivos del JSON original
             try:
@@ -1658,13 +1701,28 @@ async def send_channel_post(update: Update, context: ContextTypes.DEFAULT_TYPE, 
                             paid_media_items.append(InputPaidMediaVideo(media=file_data['file_id']))
                     
                     if paid_media_items:
-                        await context.bot.send_paid_media(
-                            chat_id=chat_id,
-                            star_count=content['price_stars'],
-                            media=paid_media_items,
-                            caption=caption,  # Ya viene traducido y limpio
-                            parse_mode='Markdown'
-                        )
+                        try:
+                            await context.bot.send_paid_media(
+                                chat_id=chat_id,
+                                star_count=content['price_stars'],
+                                media=paid_media_items,
+                                caption=escape_markdown(caption),  # Ya viene traducido y limpio
+                                parse_mode='Markdown'
+                            )
+                        except Exception as e:
+                            logger.error(f"Error enviando grupo pagado: {e}")
+                            # Fallback a mensaje con botón
+                            keyboard = [[InlineKeyboardButton(
+                                f"🔓 Desbloquear por {content['price_stars']} ⭐",
+                                callback_data=f"unlock_{content['id']}"
+                            )]]
+                            reply_markup = InlineKeyboardMarkup(keyboard)
+                            await context.bot.send_message(
+                                chat_id=chat_id,
+                                text=f"🔒 **{escape_markdown(content['title'])}**\n\n{caption}\n\n💰 {content['price_stars']} estrellas",
+                                parse_mode='Markdown',
+                                reply_markup=reply_markup
+                            )
                 else:
                     raise Exception("No se encontraron archivos en el grupo")
             except Exception as e:
@@ -1704,11 +1762,12 @@ async def send_channel_post(update: Update, context: ContextTypes.DEFAULT_TYPE, 
             )]]
             reply_markup = InlineKeyboardMarkup(keyboard)
             
-            spoiler_text = f"{stars_text}\n\n||🔒 {content['title']}\n\nContenido bloqueado - Haz clic para desbloquear||"
+            # Usar formato simple sin spoiler para evitar errores de parseo
+            preview_text = f"{stars_text}\n\n🔒 **{escape_markdown(content['title'])}**\n\nContenido bloqueado - Haz clic para desbloquear"
             await context.bot.send_message(
                 chat_id=chat_id,
-                text=spoiler_text,
-                parse_mode='MarkdownV2',
+                text=preview_text,
+                parse_mode='Markdown',
                 reply_markup=reply_markup
             )
 
