@@ -663,14 +663,15 @@ def get_text(user_id: int, key: str) -> str:
     return TRANSLATIONS.get(language, TRANSLATIONS['es']).get(key, f"[Missing: {key}]")
 
 def escape_markdown(text: str) -> str:
-    """Escapa caracteres especiales de Markdown para evitar errores de parseo"""
+    """Escapa caracteres especiales problemáticos de Markdown"""
     if not text:
         return ""
     
-    # Caracteres especiales de Markdown que necesitan escape
-    special_chars = ['_', '*', '[', ']', '(', ')', '~', '`', '>', '#', '+', '-', '=', '|', '{', '}', '.', '!']
+    # Solo escapar caracteres que realmente causan problemas de parseo
+    # Mantener formateo básico como * y _ para negrita/cursiva si es deseado
+    problematic_chars = ['[', ']', '`', '>', '\\']
     
-    for char in special_chars:
+    for char in problematic_chars:
         text = text.replace(char, f'\\{char}')
     
     return text
@@ -679,24 +680,60 @@ def get_content_description(content: dict, user_language: str) -> str:
     """Obtiene la descripción del contenido en el idioma del usuario"""
     description = ""
     
-    if user_language == 'en' and content.get('description_en'):
-        description = content['description_en']
-    elif user_language == 'fr' and content.get('description_fr'):
-        description = content['description_fr']
-    elif user_language == 'pt' and content.get('description_pt'):
-        description = content['description_pt']
-    elif user_language == 'it' and content.get('description_it'):
-        description = content['description_it']
-    elif user_language == 'de' and content.get('description_de'):
-        description = content['description_de']
-    elif user_language == 'ru' and content.get('description_ru'):
-        description = content['description_ru']
-    elif user_language == 'hi' and content.get('description_hi'):
-        description = content['description_hi']
-    elif user_language == 'ar' and content.get('description_ar'):
-        description = content['description_ar']
+    # Manejar media_group de forma especial
+    if content.get('media_type') == 'media_group':
+        import json
+        try:
+            # Para media_group, el contenido está en JSON
+            if isinstance(content['description'], str):
+                group_info = json.loads(content['description'])
+                base_description = group_info.get('description', '')
+            else:
+                base_description = content.get('description', '')
+                
+            # Buscar traducción para la descripción base
+            if user_language == 'en' and content.get('description_en'):
+                description = content['description_en']
+            elif user_language == 'fr' and content.get('description_fr'):
+                description = content['description_fr']
+            elif user_language == 'pt' and content.get('description_pt'):
+                description = content['description_pt']
+            elif user_language == 'it' and content.get('description_it'):
+                description = content['description_it']
+            elif user_language == 'de' and content.get('description_de'):
+                description = content['description_de']
+            elif user_language == 'ru' and content.get('description_ru'):
+                description = content['description_ru']
+            elif user_language == 'hi' and content.get('description_hi'):
+                description = content['description_hi']
+            elif user_language == 'ar' and content.get('description_ar'):
+                description = content['description_ar']
+            else:
+                description = base_description  # Usar descripción extraída del JSON
+                
+        except (json.JSONDecodeError, TypeError):
+            # Fallback si hay error con JSON
+            description = str(content.get('description', ''))
     else:
-        description = content['description']  # Fallback al español
+        # Contenido normal (no media_group)
+        if user_language == 'en' and content.get('description_en'):
+            description = content['description_en']
+        elif user_language == 'fr' and content.get('description_fr'):
+            description = content['description_fr']
+        elif user_language == 'pt' and content.get('description_pt'):
+            description = content['description_pt']
+        elif user_language == 'it' and content.get('description_it'):
+            description = content['description_it']
+        elif user_language == 'de' and content.get('description_de'):
+            description = content['description_de']
+        elif user_language == 'ru' and content.get('description_ru'):
+            description = content['description_ru']
+        elif user_language == 'hi' and content.get('description_hi'):
+            description = content['description_hi']
+        elif user_language == 'ar' and content.get('description_ar'):
+            description = content['description_ar']
+        else:
+            description = content.get('description', '')  # Fallback al español
     
     # Escapar caracteres especiales para evitar errores de parseo
     return escape_markdown(description)
