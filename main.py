@@ -2806,8 +2806,7 @@ def main():
         # Comandos para usuarios normales (menú básico)
         user_commands = [
             BotCommand("start", "🏠 Ver contenido del canal"),
-            BotCommand("ayuda", "❓ Obtener ayuda"),
-            BotCommand("idioma", "🌐 Cambiar idioma")
+            BotCommand("ayuda", "❓ Obtener ayuda")
         ]
         
         # Comandos para administrador (menú simplificado)
