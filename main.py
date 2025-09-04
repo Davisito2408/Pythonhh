@@ -662,26 +662,44 @@ def get_text(user_id: int, key: str) -> str:
     language = content_bot.get_user_language(user_id) if content_bot else 'es'
     return TRANSLATIONS.get(language, TRANSLATIONS['es']).get(key, f"[Missing: {key}]")
 
+def escape_markdown(text: str) -> str:
+    """Escapa caracteres especiales de Markdown para evitar errores de parseo"""
+    if not text:
+        return ""
+    
+    # Caracteres especiales de Markdown que necesitan escape
+    special_chars = ['_', '*', '[', ']', '(', ')', '~', '`', '>', '#', '+', '-', '=', '|', '{', '}', '.', '!']
+    
+    for char in special_chars:
+        text = text.replace(char, f'\\{char}')
+    
+    return text
+
 def get_content_description(content: dict, user_language: str) -> str:
     """Obtiene la descripción del contenido en el idioma del usuario"""
+    description = ""
+    
     if user_language == 'en' and content.get('description_en'):
-        return content['description_en']
+        description = content['description_en']
     elif user_language == 'fr' and content.get('description_fr'):
-        return content['description_fr']
+        description = content['description_fr']
     elif user_language == 'pt' and content.get('description_pt'):
-        return content['description_pt']
+        description = content['description_pt']
     elif user_language == 'it' and content.get('description_it'):
-        return content['description_it']
+        description = content['description_it']
     elif user_language == 'de' and content.get('description_de'):
-        return content['description_de']
+        description = content['description_de']
     elif user_language == 'ru' and content.get('description_ru'):
-        return content['description_ru']
+        description = content['description_ru']
     elif user_language == 'hi' and content.get('description_hi'):
-        return content['description_hi']
+        description = content['description_hi']
     elif user_language == 'ar' and content.get('description_ar'):
-        return content['description_ar']
+        description = content['description_ar']
     else:
-        return content['description']  # Fallback al español
+        description = content['description']  # Fallback al español
+    
+    # Escapar caracteres especiales para evitar errores de parseo
+    return escape_markdown(description)
 
 # Función simple de traducción usando transformación básica
 def translate_text(text: str, target_language: str, source_language: str = 'es') -> str:
@@ -1879,10 +1897,19 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not query or not query.from_user or not query.data:
         return
         
-    await query.answer()
-    
     user_id = query.from_user.id
     data = query.data
+    
+    # Protección contra callbacks duplicados
+    callback_id = f"{user_id}_{data}_{query.id}"
+    if hasattr(context, 'processed_callbacks'):
+        if callback_id in context.processed_callbacks:
+            return
+    else:
+        context.processed_callbacks = set()
+    
+    await query.answer()
+    context.processed_callbacks.add(callback_id)
     
     # === CALLBACKS DE SELECCIÓN DE IDIOMA ===
     if data.startswith("set_language_"):
@@ -1905,10 +1932,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         await query.edit_message_text(text, parse_mode='Markdown')
         
-        # Esperar un momento y enviar todas las publicaciones
-        import asyncio
-        await asyncio.sleep(1)
-        await send_all_posts_callback(query, context, user_id)
+        # NO enviar publicaciones automáticamente al cambiar idioma
         return
 
 # Función auxiliar para enviar posts desde callback
@@ -1948,10 +1972,19 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not query or not query.from_user or not query.data:
         return
         
-    await query.answer()
-    
     user_id = query.from_user.id
     data = query.data
+    
+    # Protección contra callbacks duplicados
+    callback_id = f"{user_id}_{data}_{query.id}"
+    if hasattr(context, 'processed_callbacks'):
+        if callback_id in context.processed_callbacks:
+            return
+    else:
+        context.processed_callbacks = set()
+    
+    await query.answer()
+    context.processed_callbacks.add(callback_id)
     
     # === CALLBACKS DE SELECCIÓN DE IDIOMA ===
     if data.startswith("set_language_"):
@@ -1974,10 +2007,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         await query.edit_message_text(text, parse_mode='Markdown')
         
-        # Esperar un momento y enviar todas las publicaciones
-        import asyncio
-        await asyncio.sleep(1)
-        await send_all_posts_callback(query, context, user_id)
+        # NO enviar publicaciones automáticamente al cambiar idioma
         return
     
     if data.startswith("unlock_"):
