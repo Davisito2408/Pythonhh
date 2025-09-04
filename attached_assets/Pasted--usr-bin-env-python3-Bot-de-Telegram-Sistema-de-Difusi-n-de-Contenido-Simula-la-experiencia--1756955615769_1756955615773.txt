@@ -7,16 +7,13 @@ Simula la experiencia de un canal tradicional en chats privados
 import logging
 import os
 import sqlite3
-import asyncio
 from typing import Optional, List, Dict, Any, Union
 from datetime import datetime
-from collections import defaultdict
 
 from telegram import (
     Update, InlineKeyboardButton, InlineKeyboardMarkup, 
     LabeledPrice, PreCheckoutQuery, Message, InputPaidMediaPhoto, 
-    InputPaidMediaVideo, InputMediaPhoto, InputMediaVideo, InputMediaDocument,
-    BotCommand
+    InputPaidMediaVideo
 )
 from telegram.ext import (
     Application, CommandHandler, CallbackQueryHandler, 
@@ -42,10 +39,6 @@ logger = logging.getLogger(__name__)
 BOT_TOKEN = os.getenv('BOT_TOKEN', '')
 ADMIN_USER_ID = int(os.getenv('ADMIN_USER_ID', '0'))
 DATABASE_NAME = 'bot_content.db'
-
-# Variables globales para media groups
-media_groups = defaultdict(list)
-pending_groups = {}
 
 class ContentBot:
     def __init__(self):
@@ -96,33 +89,6 @@ class ContentBot:
         )
         ''')
         
-        # Tabla de configuraciones
-        cursor.execute('''
-        CREATE TABLE IF NOT EXISTS settings (
-            key TEXT PRIMARY KEY,
-            value TEXT,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-        ''')
-        
-        # Insertar mensaje de ayuda predeterminado si no existe
-        cursor.execute('''
-        INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)
-        ''', ('help_message', '''📋 **Comandos Disponibles:**
-
-🎬 *Para usuarios:*
-/start - Mensaje de bienvenida
-/catalogo - Ver contenido disponible
-/ayuda - Esta ayuda
-
-💫 *Sobre las estrellas:*
-• Las estrellas ⭐ son la moneda oficial de Telegram
-• Se compran directamente en Telegram
-• Permiten acceder a contenido premium
-
-❓ *¿Necesitas ayuda?*
-Si tienes problemas, contacta al administrador del canal.'''))
-        
         conn.commit()
         conn.close()
         logger.info("Base de datos inicializada correctamente")
@@ -156,14 +122,14 @@ Si tienes problemas, contacta al administrador del canal.'''))
             SELECT id, title, description, media_type, media_file_id, price_stars
             FROM content 
             WHERE is_active = 1
-            ORDER BY created_at ASC
+            ORDER BY created_at DESC
             ''')
         else:
             # Todo el contenido para admin
             cursor.execute('''
             SELECT id, title, description, media_type, media_file_id, price_stars, is_active
             FROM content 
-            ORDER BY created_at ASC
+            ORDER BY created_at DESC
             ''')
         
         content = []
@@ -225,35 +191,6 @@ Si tienes problemas, contacta al administrador del canal.'''))
         result = cursor.fetchone()[0] > 0
         conn.close()
         return result
-    
-    def get_setting(self, key: str, default_value: str = "") -> str:
-        """Obtiene una configuración de la base de datos"""
-        conn = sqlite3.connect(DATABASE_NAME)
-        cursor = conn.cursor()
-        
-        cursor.execute('SELECT value FROM settings WHERE key = ?', (key,))
-        result = cursor.fetchone()
-        
-        conn.close()
-        return result[0] if result else default_value
-    
-    def set_setting(self, key: str, value: str) -> bool:
-        """Guarda una configuración en la base de datos"""
-        try:
-            conn = sqlite3.connect(DATABASE_NAME)
-            cursor = conn.cursor()
-            
-            cursor.execute('''
-            INSERT OR REPLACE INTO settings (key, value, updated_at)
-            VALUES (?, ?, CURRENT_TIMESTAMP)
-            ''', (key, value))
-            
-            conn.commit()
-            conn.close()
-            return True
-        except Exception as e:
-            logger.error(f"Error al guardar configuración: {e}")
-            return False
 
     def get_content_by_id(self, content_id: int) -> Optional[Dict]:
         """Obtiene contenido por ID"""
@@ -357,82 +294,6 @@ Si tienes problemas, contacta al administrador del canal.'''))
             'total_stars': total_stars,
             'top_content': top_content
         }
-    
-    def add_media_group_content(self, title: str, description: str, files: List[Dict], price_stars: int = 0) -> Optional[int]:
-        """Añade contenido de grupo de medios y devuelve el ID"""
-        conn = sqlite3.connect(DATABASE_NAME)
-        cursor = conn.cursor()
-        
-        try:
-            # Para simplificar, guardaremos el primer archivo como referencia principal
-            # En una implementación más compleja, podrías crear una tabla separada para grupos
-            media_type = "media_group"  # Tipo especial para grupos
-            
-            # Serializar información de todos los archivos en el campo description
-            import json
-            # Los archivos ya son diccionarios serializables
-            group_info = {
-                'description': description,
-                'files': files,
-                'total_files': len(files)
-            }
-            serialized_description = json.dumps(group_info, ensure_ascii=False)
-            
-            # Usar el file_id del primer archivo
-            main_file_id = files[0].get('file_id', '') if files else ''
-            
-            cursor.execute('''
-            INSERT INTO content (title, description, media_type, media_file_id, price_stars)
-            VALUES (?, ?, ?, ?, ?)
-            ''', (title, serialized_description, media_type, main_file_id, price_stars))
-            
-            content_id = cursor.lastrowid
-            conn.commit()
-            conn.close()
-            return content_id
-        except Exception as e:
-            logger.error(f"Error añadiendo grupo de contenido: {e}")
-            conn.close()
-            return None
-    
-    def get_media_group_by_id(self, content_id: int) -> Optional[Dict]:
-        """Obtiene grupo de medios por ID"""
-        conn = sqlite3.connect(DATABASE_NAME)
-        cursor = conn.cursor()
-        
-        cursor.execute('''
-        SELECT id, title, description, media_type, media_file_id, price_stars
-        FROM content 
-        WHERE id = ? AND is_active = 1 AND media_type = 'media_group'
-        ''', (content_id,))
-        
-        row = cursor.fetchone()
-        conn.close()
-        
-        if row:
-            import json
-            try:
-                group_info = json.loads(row[2])  # description contiene la info serializada
-                return {
-                    'id': row[0],
-                    'title': row[1],
-                    'description': group_info.get('description', ''),
-                    'media_type': row[3],
-                    'files': group_info.get('files', []),
-                    'total_files': group_info.get('total_files', 0),
-                    'price_stars': row[5]
-                }
-            except json.JSONDecodeError:
-                # Fallback si hay problema con el JSON
-                return {
-                    'id': row[0],
-                    'title': row[1],
-                    'description': row[2],
-                    'media_type': row[3],
-                    'files': [],
-                    'price_stars': row[5]
-                }
-        return None
 
 async def update_all_user_chats(context: ContextTypes.DEFAULT_TYPE):
     """Actualiza silenciosamente los chats de todos los usuarios enviando contenido actualizado"""
@@ -483,60 +344,6 @@ async def broadcast_new_content(context: ContextTypes.DEFAULT_TYPE, content_id: 
             await asyncio.sleep(0.1)
         except Exception as e:
             logger.error(f"Error enviando contenido a usuario {user_id}: {e}")
-
-async def broadcast_media_group(context: ContextTypes.DEFAULT_TYPE, content_id: int, media_items: List, title: str, description: str, price: int):
-    """Envía grupo de medios a todos los usuarios registrados usando sendMediaGroup nativo"""
-    logger.info(f"Iniciando broadcast de grupo {content_id} con {len(media_items)} archivos para precio {price}")
-    users = content_bot.get_all_users()
-    logger.info(f"Encontrados {len(users)} usuarios para enviar")
-    
-    if not media_items:
-        logger.error("No hay media_items para enviar")
-        return
-    
-    for user_id in users:
-        try:
-            logger.info(f"Enviando grupo a usuario {user_id}, precio: {price}")
-            if price > 0:
-                # Para contenido pagado, usar send_paid_media nativo
-                logger.info(f"Enviando paid media group a usuario {user_id}")
-                
-                # Convertir media_items (InputMedia*) a InputPaidMedia*
-                paid_media_items = []
-                for media_item in media_items:
-                    if hasattr(media_item, 'media'):  # Es InputMediaPhoto, InputMediaVideo, etc.
-                        if media_item.__class__.__name__ == 'InputMediaPhoto':
-                            paid_media_items.append(InputPaidMediaPhoto(media=media_item.media))
-                        elif media_item.__class__.__name__ == 'InputMediaVideo':
-                            paid_media_items.append(InputPaidMediaVideo(media=media_item.media))
-                
-                if paid_media_items:
-                    # Usar send_paid_media nativo de Telegram
-                    caption = f"**{description}**"
-                    await context.bot.send_paid_media(
-                        chat_id=user_id,
-                        star_count=price,
-                        media=paid_media_items,
-                        caption=caption,
-                        parse_mode='Markdown'
-                    )
-                    logger.info(f"Paid media group enviado a usuario {user_id}")
-                else:
-                    logger.error(f"No se pudieron convertir media items a paid media para usuario {user_id}")
-            else:
-                # Para contenido gratuito, enviar el grupo completo directamente
-                logger.info(f"Enviando media group gratuito a usuario {user_id}")
-                await context.bot.send_media_group(
-                    chat_id=user_id,
-                    media=media_items
-                )
-                logger.info(f"Media group enviado a usuario {user_id}")
-            
-            # Pequeña pausa para evitar spam
-            import asyncio
-            await asyncio.sleep(0.2)
-        except Exception as e:
-            logger.error(f"Error enviando grupo a usuario {user_id}: {e}")
 
 async def send_all_posts(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Envía todas las publicaciones como si fuera un canal"""
@@ -589,45 +396,6 @@ async def send_channel_post(update: Update, context: ContextTypes.DEFAULT_TYPE, 
                 caption=caption,
                 parse_mode='Markdown'
             )
-        elif content['media_type'] == 'media_group':
-            # Para grupos de medios gratuitos, usar send_media_group
-            import json
-            try:
-                # Deserializar los archivos del grupo
-                group_info = json.loads(content['description'])
-                files = group_info.get('files', [])
-                
-                # Convertir a InputMedia* - ESTÁNDAR TELEGRAM: caption solo en primer elemento
-                media_items = []
-                for i, file_data in enumerate(files):
-                    # Según API oficial: caption SOLO en primer elemento
-                    caption_text = caption if i == 0 else None
-                    if file_data['type'] == 'photo':
-                        media_items.append(InputMediaPhoto(
-                            media=file_data['file_id'],
-                            caption=caption_text,
-                            parse_mode='Markdown' if caption_text else None
-                        ))
-                    elif file_data['type'] == 'video':
-                        media_items.append(InputMediaVideo(
-                            media=file_data['file_id'],
-                            caption=caption_text,
-                            parse_mode='Markdown' if caption_text else None
-                        ))
-                
-                if media_items:
-                    await context.bot.send_media_group(
-                        chat_id=chat_id,
-                        media=media_items
-                    )
-            except Exception as e:
-                logger.error(f"Error enviando grupo de medios gratuito: {e}")
-                # Fallback a mensaje de texto
-                await context.bot.send_message(
-                    chat_id=chat_id,
-                    text=caption,
-                    parse_mode='Markdown'
-                )
         else:
             await context.bot.send_message(
                 chat_id=chat_id,
@@ -656,40 +424,6 @@ async def send_channel_post(update: Update, context: ContextTypes.DEFAULT_TYPE, 
                 caption=caption,
                 parse_mode='Markdown'
             )
-        elif content['media_type'] == 'media_group':
-            # Para grupos de medios, usar send_paid_media con múltiples archivos
-            import json
-            try:
-                # Deserializar los archivos del grupo
-                group_info = json.loads(content['description'])
-                files = group_info.get('files', [])
-                # SIMPLIFICADO: solo título para sendPaidMedia también
-                final_caption = f"**{content['title']}**"
-                
-                # Convertir a InputPaidMedia*
-                paid_media_items = []
-                for file_data in files:
-                    if file_data['type'] == 'photo':
-                        paid_media_items.append(InputPaidMediaPhoto(media=file_data['file_id']))
-                    elif file_data['type'] == 'video':
-                        paid_media_items.append(InputPaidMediaVideo(media=file_data['file_id']))
-                
-                if paid_media_items:
-                    await context.bot.send_paid_media(
-                        chat_id=chat_id,
-                        star_count=content['price_stars'],
-                        media=paid_media_items,
-                        caption=final_caption,
-                        parse_mode='Markdown'
-                    )
-            except Exception as e:
-                logger.error(f"Error enviando grupo de medios pagado: {e}")
-                # Fallback a mensaje de texto
-                await context.bot.send_message(
-                    chat_id=chat_id,
-                    text=f"🔒 **{content['title']}**\n\nContenido de grupo premium\n\n💰 {content['price_stars']} estrellas",
-                    parse_mode='Markdown'
-                )
         elif content['media_type'] == 'document':
             # Para documentos, usar mensaje de texto con botón de pago manual
             stars_text = f"⭐ {content['price_stars']} estrellas"
@@ -746,8 +480,8 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.message:
         return
         
-    # Obtener mensaje personalizado de la base de datos
-    help_text = content_bot.get_setting('help_message', '''📋 **Comandos Disponibles:**
+    help_text = """
+📋 **Comandos Disponibles:**
 
 🎬 *Para usuarios:*
 /start - Mensaje de bienvenida
@@ -760,9 +494,11 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 • Permiten acceder a contenido premium
 
 ❓ *¿Necesitas ayuda?*
-Si tienes problemas, contacta al administrador del canal.''')
+Si tienes problemas, contacta al administrador del canal.
+    """
     
-    await update.message.reply_text(help_text, parse_mode='Markdown')
+    if update.message:
+        await update.message.reply_text(help_text)
 
 async def catalog_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Comando /catalogo"""
@@ -815,8 +551,7 @@ async def admin_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("➕ Añadir Contenido", callback_data="admin_add_content")],
         [InlineKeyboardButton("📋 Gestionar Contenido", callback_data="admin_manage_content")],
         [InlineKeyboardButton("📊 Estadísticas", callback_data="admin_stats")],
-        [InlineKeyboardButton("⚙️ Configuración", callback_data="admin_settings")],
-        [InlineKeyboardButton("✏️ Mensaje de Ayuda", callback_data="admin_help_message")]
+        [InlineKeyboardButton("⚙️ Configuración", callback_data="admin_settings")]
     ]
     
     reply_markup = InlineKeyboardMarkup(keyboard)
@@ -843,7 +578,11 @@ async def menu_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("🔧 Panel Admin", callback_data="quick_admin")],
         [InlineKeyboardButton("➕ Subir Contenido", callback_data="quick_upload"), 
          InlineKeyboardButton("📋 Gestionar", callback_data="admin_manage_content")],
-        [InlineKeyboardButton("📊 Estadísticas", callback_data="admin_stats")]
+        [InlineKeyboardButton("📊 Estadísticas", callback_data="admin_stats"), 
+         InlineKeyboardButton("⚙️ Configuración", callback_data="admin_settings")],
+        [InlineKeyboardButton("🗑️ Limpiar Chats", callback_data="clean_user_chats"), 
+         InlineKeyboardButton("📄 Exportar Stats", callback_data="export_stats")],
+        [InlineKeyboardButton("🔄 Actualizar Todo", callback_data="refresh_all_users")]
     ]
     
     reply_markup = InlineKeyboardMarkup(keyboard)
@@ -975,6 +714,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         elif data == "admin_settings":
             keyboard = [
                 [InlineKeyboardButton("🗑️ Limpiar chats de usuarios", callback_data="clean_user_chats")],
+                [InlineKeyboardButton("📊 Exportar estadísticas", callback_data="export_stats")],
                 [InlineKeyboardButton("⬅️ Volver", callback_data="admin_back")]
             ]
             reply_markup = InlineKeyboardMarkup(keyboard)
@@ -986,37 +726,12 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 reply_markup=reply_markup
             )
         
-        elif data == "admin_help_message":
-            # Obtener mensaje actual
-            current_message = content_bot.get_setting('help_message', 'No configurado')
-            
-            keyboard = [
-                [InlineKeyboardButton("✏️ Cambiar Mensaje", callback_data="change_help_message")],
-                [InlineKeyboardButton("👀 Vista Previa", callback_data="preview_help_message")],
-                [InlineKeyboardButton("🔄 Restaurar Original", callback_data="reset_help_message")],
-                [InlineKeyboardButton("⬅️ Volver", callback_data="admin_back")]
-            ]
-            reply_markup = InlineKeyboardMarkup(keyboard)
-            
-            # Mostrar preview truncado
-            preview = current_message[:200] + "..." if len(current_message) > 200 else current_message
-            
-            await query.edit_message_text(
-                f"✏️ **Personalización del Mensaje de Ayuda**\n\n"
-                f"📝 **Mensaje actual:**\n"
-                f"```\n{preview}\n```\n\n"
-                f"Usa los botones para gestionar el mensaje:",
-                parse_mode='Markdown',
-                reply_markup=reply_markup
-            )
-        
         elif data == "admin_back":
             keyboard = [
                 [InlineKeyboardButton("➕ Añadir Contenido", callback_data="admin_add_content")],
                 [InlineKeyboardButton("📋 Gestionar Contenido", callback_data="admin_manage_content")],
                 [InlineKeyboardButton("📊 Estadísticas", callback_data="admin_stats")],
-                [InlineKeyboardButton("⚙️ Configuración", callback_data="admin_settings")],
-                [InlineKeyboardButton("✏️ Mensaje de Ayuda", callback_data="admin_help_message")]
+                [InlineKeyboardButton("⚙️ Configuración", callback_data="admin_settings")]
             ]
             reply_markup = InlineKeyboardMarkup(keyboard)
             
@@ -1028,6 +743,13 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
     
     # Nuevos callbacks para configuración de contenido
+    elif data == "setup_title":
+        context.user_data['waiting_for'] = 'title'
+        await query.edit_message_text(
+            "✏️ **Establecer Título**\n\n"
+            "Envía el título para tu publicación:",
+            parse_mode='Markdown'
+        )
     
     elif data == "setup_description":
         context.user_data['waiting_for'] = 'description'
@@ -1075,13 +797,13 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif data == "publish_content":
         media_data = context.user_data.get('pending_media', {})
         
-        if not media_data.get('description'):
-            await query.answer("❌ Falta descripción", show_alert=True)
+        if not media_data.get('title') or not media_data.get('description'):
+            await query.answer("❌ Falta título o descripción", show_alert=True)
             return
         
         # Publicar contenido
         content_id = content_bot.add_content(
-            media_data['description'],  # Título ahora es la descripción
+            media_data['title'],
             media_data['description'], 
             media_data['type'],
             media_data['file_id'],
@@ -1091,6 +813,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if content_id:
             await query.edit_message_text(
                 f"✅ **¡Contenido publicado!**\n\n"
+                f"📺 **Título:** {media_data['title']}\n"
                 f"📝 **Descripción:** {media_data['description']}\n"
                 f"💰 **Precio:** {media_data['price']} estrellas\n\n"
                 f"📡 **Enviando a todos los usuarios...**",
@@ -1103,6 +826,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             # Actualizar mensaje de confirmación
             await query.edit_message_text(
                 f"✅ **¡Contenido publicado y enviado!**\n\n"
+                f"📺 **Título:** {media_data['title']}\n"
                 f"📝 **Descripción:** {media_data['description']}\n"
                 f"💰 **Precio:** {media_data['price']} estrellas\n\n"
                 f"✉️ **Enviado a todos los usuarios del canal**",
@@ -1126,261 +850,8 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Limpiar datos
         if 'pending_media' in context.user_data:
             del context.user_data['pending_media']
-        if 'media_group' in context.user_data:
-            del context.user_data['media_group']
         if 'waiting_for' in context.user_data:
             del context.user_data['waiting_for']
-    
-    # === NUEVOS CALLBACKS PARA GRUPOS DE ARCHIVOS ===
-    
-    elif data == "setup_group_description":
-        context.user_data['waiting_for'] = 'group_description'
-        await query.edit_message_text(
-            "📝 **Descripción del Grupo**\n\n"
-            "Envía la descripción que se aplicará a todo el grupo:",
-            parse_mode='Markdown'
-        )
-    
-    elif data == "setup_group_price":
-        price_keyboard = [
-            [InlineKeyboardButton("Gratuito (0 ⭐)", callback_data="group_price_0")],
-            [InlineKeyboardButton("5 ⭐", callback_data="group_price_5"), InlineKeyboardButton("10 ⭐", callback_data="group_price_10")],
-            [InlineKeyboardButton("25 ⭐", callback_data="group_price_25"), InlineKeyboardButton("50 ⭐", callback_data="group_price_50")],
-            [InlineKeyboardButton("100 ⭐", callback_data="group_price_100"), InlineKeyboardButton("200 ⭐", callback_data="group_price_200")],
-            [InlineKeyboardButton("✏️ Precio personalizado", callback_data="group_price_custom")],
-            [InlineKeyboardButton("⬅️ Volver", callback_data="back_to_group_setup")]
-        ]
-        
-        reply_markup = InlineKeyboardMarkup(price_keyboard)
-        
-        await query.edit_message_text(
-            "💰 **Precio del Grupo**\n\n"
-            "Selecciona el precio único para todo el grupo:",
-            parse_mode='Markdown',
-            reply_markup=reply_markup
-        )
-    
-    elif data.startswith("group_price_"):
-        if data == "group_price_custom":
-            context.user_data['waiting_for'] = 'group_custom_price'
-            await query.edit_message_text(
-                "💰 **Precio Personalizado del Grupo**\n\n"
-                "Envía el número de estrellas para todo el grupo:",
-                parse_mode='Markdown'
-            )
-        else:
-            price = int(data.split("_")[2])
-            context.user_data['media_group']['price'] = price
-            await show_group_preview(query, context)
-    
-    elif data == "back_to_group_setup":
-        await show_group_preview(query, context)
-    
-    elif data == "publish_group":
-        media_group_data = context.user_data.get('media_group', {})
-        
-        if not media_group_data.get('description'):
-            await query.answer("❌ Falta descripción del grupo", show_alert=True)
-            return
-        
-        # Publicar grupo usando sendMediaGroup nativo
-        await publish_media_group(query, context, media_group_data)
-    
-    # === NUEVOS CALLBACKS PARA MÚLTIPLES ARCHIVOS ===
-    elif data == "view_queue":
-        media_queue = context.user_data.get('media_queue', [])
-        
-        if not media_queue:
-            await query.answer("❌ No hay archivos en la cola", show_alert=True)
-            return
-        
-        queue_text = "📋 **Cola de Archivos:**\n\n"
-        
-        for i, item in enumerate(media_queue, 1):
-            status_icon = "✅" if item.get('title') and item.get('description') else "⏳"
-            price_text = f"{item['price']} ⭐" if item['price'] > 0 else "GRATIS"
-            
-            queue_text += f"{status_icon} **#{i}** - {item['type']} ({price_text})\n"
-            queue_text += f"📝 {item.get('title', '_Sin título_')}\n"
-            queue_text += f"📄 {item.get('description', '_Sin descripción_')[:50]}...\n\n"
-        
-        # Botones para gestionar la cola
-        keyboard = [
-            [InlineKeyboardButton("⚙️ Configurar Todo", callback_data="batch_setup")],
-            [InlineKeyboardButton("✅ Publicar Todo", callback_data="publish_all")],
-            [InlineKeyboardButton("🔄 Actualizar", callback_data="view_queue")],
-            [InlineKeyboardButton("🗑️ Limpiar Cola", callback_data="clear_queue")]
-        ]
-        
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        
-        await query.edit_message_text(
-            queue_text,
-            parse_mode='Markdown',
-            reply_markup=reply_markup
-        )
-    
-    elif data == "batch_setup":
-        media_queue = context.user_data.get('media_queue', [])
-        
-        if not media_queue:
-            await query.answer("❌ No hay archivos en la cola", show_alert=True)
-            return
-        
-        keyboard = [
-            [InlineKeyboardButton("✏️ Establecer Título General", callback_data="batch_title")],
-            [InlineKeyboardButton("📝 Establecer Descripción General", callback_data="batch_description")],
-            [InlineKeyboardButton("💰 Establecer Precio General", callback_data="batch_price")],
-            [InlineKeyboardButton("🔄 Configurar Individual", callback_data="individual_setup")],
-            [InlineKeyboardButton("⬅️ Volver a Cola", callback_data="view_queue")]
-        ]
-        
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        
-        await query.edit_message_text(
-            f"⚙️ **Configuración Masiva**\n\n"
-            f"📊 **Archivos en cola:** {len(media_queue)}\n\n"
-            f"Elige cómo quieres configurar los archivos:",
-            parse_mode='Markdown',
-            reply_markup=reply_markup
-        )
-    
-    elif data == "publish_all":
-        media_queue = context.user_data.get('media_queue', [])
-        
-        if not media_queue:
-            await query.answer("❌ No hay archivos para publicar", show_alert=True)
-            return
-        
-        # Verificar que todos los archivos tengan título y descripción
-        incomplete = []
-        for i, item in enumerate(media_queue):
-            if not item.get('title') or not item.get('description'):
-                incomplete.append(i + 1)
-        
-        if incomplete:
-            await query.answer(f"❌ Archivos sin configurar: #{', #'.join(map(str, incomplete))}", show_alert=True)
-            return
-        
-        await query.edit_message_text(
-            f"📡 **Publicando {len(media_queue)} archivos...**\n\n"
-            f"⏳ Por favor espera mientras se procesan todos los archivos.",
-            parse_mode='Markdown'
-        )
-        
-        published_count = 0
-        failed_count = 0
-        
-        for i, media_data in enumerate(media_queue):
-            try:
-                content_id = content_bot.add_content(
-                    media_data['title'],
-                    media_data['description'],
-                    media_data['type'],
-                    media_data['file_id'],
-                    media_data['price']
-                )
-                
-                if content_id:
-                    published_count += 1
-                    # Enviar a todos los usuarios
-                    await broadcast_new_content(context, content_id)
-                    
-                    # Pequeña pausa entre publicaciones
-                    import asyncio
-                    await asyncio.sleep(0.5)
-                else:
-                    failed_count += 1
-            except Exception as e:
-                logger.error(f"Error publicando archivo {i+1}: {e}")
-                failed_count += 1
-        
-        # Limpiar cola después de publicar
-        context.user_data['media_queue'] = []
-        
-        result_text = f"✅ **¡Publicación completada!**\n\n"
-        result_text += f"📊 **Resultados:**\n"
-        result_text += f"✅ Publicados: {published_count}\n"
-        if failed_count > 0:
-            result_text += f"❌ Fallidos: {failed_count}\n"
-        result_text += f"\n📡 **Todos los archivos han sido enviados a los usuarios**"
-        
-        await query.edit_message_text(
-            result_text,
-            parse_mode='Markdown'
-        )
-    
-    elif data == "clear_queue":
-        context.user_data['media_queue'] = []
-        await query.edit_message_text(
-            "🗑️ **Cola limpiada**\n\n"
-            "Todos los archivos han sido eliminados de la cola.\n\n"
-            "Puedes empezar a enviar nuevos archivos.",
-            parse_mode='Markdown'
-        )
-    
-    elif data.startswith("batch_"):
-        batch_type = data.split("_")[1]
-        
-        if batch_type == "title":
-            context.user_data['waiting_for'] = 'batch_title'
-            await query.edit_message_text(
-                "✏️ **Título General para Todos los Archivos**\n\n"
-                "Envía el título que se aplicará a todos los archivos de la cola:\n\n"
-                "💡 Tip: Se agregará un número automáticamente a cada uno",
-                parse_mode='Markdown'
-            )
-        elif batch_type == "description":
-            context.user_data['waiting_for'] = 'batch_description'
-            await query.edit_message_text(
-                "📝 **Descripción General para Todos los Archivos**\n\n"
-                "Envía la descripción que se aplicará a todos los archivos:",
-                parse_mode='Markdown'
-            )
-        elif batch_type == "price":
-            keyboard = [
-                [InlineKeyboardButton("🆓 Gratis", callback_data="batch_price_0")],
-                [InlineKeyboardButton("⭐ 5 estrellas", callback_data="batch_price_5"),
-                 InlineKeyboardButton("⭐ 10 estrellas", callback_data="batch_price_10")],
-                [InlineKeyboardButton("⭐ 25 estrellas", callback_data="batch_price_25"),
-                 InlineKeyboardButton("⭐ 50 estrellas", callback_data="batch_price_50")],
-                [InlineKeyboardButton("⭐ 100 estrellas", callback_data="batch_price_100"),
-                 InlineKeyboardButton("⭐ 200 estrellas", callback_data="batch_price_200")],
-                [InlineKeyboardButton("💰 Precio Personalizado", callback_data="batch_custom_price")],
-                [InlineKeyboardButton("⬅️ Volver", callback_data="batch_setup")]
-            ]
-            
-            reply_markup = InlineKeyboardMarkup(keyboard)
-            
-            await query.edit_message_text(
-                "💰 **Precio General para Todos los Archivos**\n\n"
-                "Selecciona el precio que se aplicará a todos los archivos:",
-                parse_mode='Markdown',
-                reply_markup=reply_markup
-            )
-    
-    elif data.startswith("batch_price_"):
-        price = int(data.split("_")[2])
-        media_queue = context.user_data.get('media_queue', [])
-        
-        for item in media_queue:
-            item['price'] = price
-        
-        await query.edit_message_text(
-            f"✅ **Precio aplicado a todos los archivos**\n\n"
-            f"💰 **Precio:** {price} {'estrellas ⭐' if price > 0 else '(GRATIS)'}\n"
-            f"📊 **Archivos afectados:** {len(media_queue)}\n\n"
-            f"Puedes continuar configurando otros aspectos o publicar todo.",
-            parse_mode='Markdown'
-        )
-    
-    elif data == "batch_custom_price":
-        context.user_data['waiting_for'] = 'batch_custom_price'
-        await query.edit_message_text(
-            "💰 **Precio Personalizado**\n\n"
-            "Envía el número de estrellas (0 para gratis):",
-            parse_mode='Markdown'
-        )
     
     # Nuevos handlers para gestión individual de contenido
     elif data.startswith("manage_content_"):
@@ -1450,11 +921,13 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         content_id = int(data.split("_")[2])
         
         # Ejecutar eliminación
-        if content_bot.delete_content(content_id):            
+        if content_bot.delete_content(content_id):
+            # Enviar nueva versión del canal a todos los usuarios (sin notificación)
+            await update_all_user_chats(context)
+            
             await query.edit_message_text(
                 f"✅ **Contenido eliminado exitosamente**\n\n"
-                f"El contenido ha sido eliminado permanentemente de la base de datos.\n\n"
-                f"💡 **Nota:** Los usuarios verán el contenido actualizado cuando inicien una nueva conversación.",
+                f"El contenido ha sido eliminado y los chats de usuarios han sido actualizados silenciosamente.",
                 parse_mode='Markdown'
             )
         else:
@@ -1470,160 +943,32 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.edit_message_text("❌ Sin permisos de administrador.")
             return
         
-        # Limpiar chats de todos los usuarios eliminando mensajes del bot
+        # Enviar notificación a todos los usuarios
         users = content_bot.get_all_users()
+        notification_text = (
+            "🔄 **Contenido actualizado**\n\n"
+            "El canal ha sido actualizado. Usa /start para ver el contenido actual."
+        )
         
-        cleaned_count = 0
-        for user_id_clean in users:
+        sent_count = 0
+        for user_id_notify in users:
             try:
-                # Intentar obtener información del chat
-                try:
-                    chat = await context.bot.get_chat(user_id_clean)
-                except Exception:
-                    continue  # Usuario bloqueó el bot o chat no accesible
-                
-                # Enviar comando de limpieza (solo funciona si el usuario lo permite)
-                try:
-                    # Primero enviar mensaje informativo
-                    cleanup_msg = await context.bot.send_message(
-                        chat_id=user_id_clean,
-                        text="🧹 **Limpiando chat...**\n\nEliminando mensajes anteriores...",
-                        parse_mode='Markdown'
-                    )
-                    
-                    # Esperar un poco antes de eliminar
-                    import asyncio
-                    await asyncio.sleep(1)
-                    
-                    # Eliminar el mensaje de limpieza también
-                    await context.bot.delete_message(chat_id=user_id_clean, message_id=cleanup_msg.message_id)
-                    
-                    cleaned_count += 1
-                    
-                except Exception as e:
-                    logger.error(f"Error limpiando chat de usuario {user_id_clean}: {e}")
-                
-                await asyncio.sleep(0.2)
-                
+                await context.bot.send_message(
+                    chat_id=user_id_notify,
+                    text=notification_text,
+                    parse_mode='Markdown'
+                )
+                sent_count += 1
+                import asyncio
+                await asyncio.sleep(0.1)
             except Exception as e:
-                logger.error(f"Error procesando usuario {user_id_clean}: {e}")
+                logger.error(f"Error notificando usuario {user_id_notify}: {e}")
         
         await query.edit_message_text(
-            f"🧹 **Limpieza completada**\n\n"
-            f"Se procesaron {cleaned_count} chats de usuarios.\n\n"
-            f"💡 **Nota:** Solo se pueden limpiar mensajes recientes del bot.",
+            f"🧹 **Notificación enviada**\n\n"
+            f"Se ha enviado mensaje de actualización a {sent_count} usuarios.",
             parse_mode='Markdown'
         )
-    
-    elif data == "clean_admin_chat":
-        if not content_bot.is_admin(user_id):
-            await query.edit_message_text("❌ Sin permisos de administrador.")
-            return
-        
-        try:
-            # Enviar mensaje temporal de limpieza
-            cleanup_msg = await context.bot.send_message(
-                chat_id=user_id,
-                text="🧹 **Limpiando chat de administración...**\n\nEsto puede tomar unos segundos...",
-                parse_mode='Markdown'
-            )
-            
-            import asyncio
-            await asyncio.sleep(2)
-            
-            # Eliminar el mensaje temporal
-            try:
-                await context.bot.delete_message(chat_id=user_id, message_id=cleanup_msg.message_id)
-            except Exception:
-                pass
-            
-            # Confirmar limpieza al admin
-            await query.edit_message_text(
-                f"🧹 **Chat de administración limpiado**\n\n"
-                f"✅ Se ha intentado limpiar el chat administrativo.\n\n"
-                f"💡 **Nota:** Solo se pueden eliminar mensajes recientes del bot.",
-                parse_mode='Markdown'
-            )
-            
-        except Exception as e:
-            logger.error(f"Error limpiando chat admin: {e}")
-            await query.edit_message_text(
-                f"❌ **Error al limpiar chat**\n\n"
-                f"Hubo un problema al limpiar el chat administrativo.",
-                parse_mode='Markdown'
-            )
-    
-    elif data == "change_help_message":
-        if not content_bot.is_admin(user_id):
-            await query.edit_message_text("❌ Sin permisos de administrador.")
-            return
-            
-        context.user_data['waiting_for'] = 'help_message'
-        await query.edit_message_text(
-            "✏️ **Cambiar Mensaje de Ayuda**\n\n"
-            "Envía el nuevo mensaje que quieres que aparezca cuando los usuarios usen /ayuda\n\n"
-            "💡 **Puedes usar formato Markdown:**\n"
-            "• **texto en negrita**\n"
-            "• *texto en cursiva*\n"
-            "• `código`\n"
-            "• Emojis 🎬 ⭐ 💫",
-            parse_mode='Markdown'
-        )
-    
-    elif data == "preview_help_message":
-        current_message = content_bot.get_setting('help_message', 'No hay mensaje configurado')
-        
-        keyboard = [[InlineKeyboardButton("⬅️ Volver", callback_data="admin_help_message")]]
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        
-        await query.edit_message_text(
-            f"👀 **Vista Previa del Mensaje de Ayuda**\n\n"
-            f"Este es el mensaje que ven los usuarios:\n\n"
-            f"--- INICIO DEL MENSAJE ---\n"
-            f"{current_message}\n"
-            f"--- FIN DEL MENSAJE ---",
-            parse_mode='Markdown',
-            reply_markup=reply_markup
-        )
-    
-    elif data == "reset_help_message":
-        if not content_bot.is_admin(user_id):
-            await query.edit_message_text("❌ Sin permisos de administrador.")
-            return
-            
-        # Restaurar mensaje original
-        default_message = '''📋 **Comandos Disponibles:**
-
-🎬 *Para usuarios:*
-/start - Mensaje de bienvenida
-/catalogo - Ver contenido disponible
-/ayuda - Esta ayuda
-
-💫 *Sobre las estrellas:*
-• Las estrellas ⭐ son la moneda oficial de Telegram
-• Se compran directamente en Telegram
-• Permiten acceder a contenido premium
-
-❓ *¿Necesitas ayuda?*
-Si tienes problemas, contacta al administrador del canal.'''
-        
-        if content_bot.set_setting('help_message', default_message):
-            keyboard = [[InlineKeyboardButton("⬅️ Volver", callback_data="admin_help_message")]]
-            reply_markup = InlineKeyboardMarkup(keyboard)
-            
-            await query.edit_message_text(
-                "✅ **Mensaje Restaurado**\n\n"
-                "El mensaje de ayuda ha sido restaurado al original.\n"
-                "Los usuarios verán el mensaje predeterminado cuando usen /ayuda",
-                parse_mode='Markdown',
-                reply_markup=reply_markup
-            )
-        else:
-            await query.edit_message_text(
-                "❌ **Error**\n\n"
-                "No se pudo restaurar el mensaje. Inténtalo de nuevo.",
-                parse_mode='Markdown'
-            )
     
     elif data == "export_stats":
         if not content_bot.is_admin(user_id):
@@ -1656,8 +1001,7 @@ Si tienes problemas, contacta al administrador del canal.'''
             [InlineKeyboardButton("➕ Añadir Contenido", callback_data="admin_add_content")],
             [InlineKeyboardButton("📋 Gestionar Contenido", callback_data="admin_manage_content")],
             [InlineKeyboardButton("📊 Estadísticas", callback_data="admin_stats")],
-            [InlineKeyboardButton("⚙️ Configuración", callback_data="admin_settings")],
-            [InlineKeyboardButton("✏️ Mensaje de Ayuda", callback_data="admin_help_message")]
+            [InlineKeyboardButton("⚙️ Configuración", callback_data="admin_settings")]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
         
@@ -1690,21 +1034,28 @@ Si tienes problemas, contacta al administrador del canal.'''
             await query.edit_message_text("❌ Sin permisos de administrador.")
             return
         
-        await query.edit_message_text(
-            "ℹ️ **Actualización de Usuarios**\n\n"
-            "**Nota:** Los usuarios verán el contenido actualizado cuando inicien una nueva conversación con `/start`.\n\n"
-            "**¿Por qué no se actualiza automáticamente?**\n"
-            "- Evita spam a los usuarios\n"
-            "- Previene errores con usuarios que bloquearon el bot\n"
-            "- Mejor experiencia para todos\n\n"
-            "💡 **Recomendación:** Los canales reales de Telegram tampoco empujan contenido automáticamente cuando se elimina algo.",
-            parse_mode='Markdown'
-        )
+        # Ejecutar actualización de todos los chats de usuarios
+        await query.edit_message_text("🔄 **Actualizando todos los chats...**\n\nEsto puede tardar unos segundos.")
+        
+        try:
+            await update_all_user_chats(context)
+            await query.edit_message_text(
+                "✅ **Actualización Completada**\n\n"
+                "Todos los chats de usuarios han sido actualizados con el contenido más reciente.",
+                parse_mode='Markdown'
+            )
+        except Exception as e:
+            await query.edit_message_text(
+                f"❌ **Error en la Actualización**\n\n"
+                f"Hubo un problema al actualizar los chats. Intenta de nuevo más tarde.",
+                parse_mode='Markdown'
+            )
 
 async def show_content_preview(query, context: ContextTypes.DEFAULT_TYPE):
     """Muestra vista previa del contenido en configuración"""
     media_data = context.user_data.get('pending_media', {})
     
+    title = media_data.get('title', '_No establecido_')
     description = media_data.get('description', '_No establecida_')
     price = media_data.get('price', 0)
     media_type = media_data.get('type', 'desconocido')
@@ -1712,6 +1063,7 @@ async def show_content_preview(query, context: ContextTypes.DEFAULT_TYPE):
     price_text = "**Gratuito**" if price == 0 else f"**{price} estrellas**"
     
     keyboard = [
+        [InlineKeyboardButton("✏️ Establecer Título", callback_data="setup_title")],
         [InlineKeyboardButton("📝 Establecer Descripción", callback_data="setup_description")],
         [InlineKeyboardButton("💰 Establecer Precio", callback_data="setup_price")],
         [InlineKeyboardButton("✅ Publicar Contenido", callback_data="publish_content")],
@@ -1723,6 +1075,7 @@ async def show_content_preview(query, context: ContextTypes.DEFAULT_TYPE):
     preview_text = (
         f"📁 **Archivo recibido** ({media_type})\n\n"
         f"🔧 **Configuración actual:**\n"
+        f"✏️ Título: {title}\n"
         f"📝 Descripción: {description}\n"
         f"💰 Precio: {price_text}\n\n"
         f"Usa los botones para configurar tu publicación:"
@@ -1733,139 +1086,6 @@ async def show_content_preview(query, context: ContextTypes.DEFAULT_TYPE):
         parse_mode='Markdown',
         reply_markup=reply_markup
     )
-
-async def show_group_preview(query, context: ContextTypes.DEFAULT_TYPE):
-    """Muestra vista previa del grupo de archivos en configuración"""
-    group_data = context.user_data.get('media_group', {})
-    
-    title = group_data.get('title', '_No establecido_')
-    description = group_data.get('description', '_No establecida_')
-    price = group_data.get('price', 0)
-    files = group_data.get('files', [])
-    
-    price_text = "**Gratuito**" if price == 0 else f"**{price} estrellas**"
-    
-    file_count = len(files)
-    photo_count = sum(1 for f in files if f['type'] == 'photo')
-    video_count = sum(1 for f in files if f['type'] == 'video')
-    doc_count = sum(1 for f in files if f['type'] == 'document')
-    
-    keyboard = [
-        [InlineKeyboardButton("📝 Descripción del Grupo", callback_data="setup_group_description")],
-        [InlineKeyboardButton("💰 Precio del Grupo", callback_data="setup_group_price")],
-        [InlineKeyboardButton("✅ Publicar Grupo", callback_data="publish_group")],
-        [InlineKeyboardButton("❌ Cancelar", callback_data="cancel_upload")]
-    ]
-    
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    
-    preview_text = (
-        f"📦 **Grupo de archivos recibido**\n\n"
-        f"📊 **Archivos:** {file_count} total\n"
-        f"🎥 **Fotos:** {photo_count}\n"
-        f"🎬 **Videos:** {video_count}\n"
-        f"📄 **Documentos:** {doc_count}\n\n"
-        f"🔧 **Configuración actual:**\n"
-        f"📝 Descripción: {description}\n"
-        f"💰 Precio: {price_text}\n\n"
-        f"Se publicará como un álbum con configuración única:"
-    )
-    
-    await query.edit_message_text(
-        preview_text,
-        parse_mode='Markdown',
-        reply_markup=reply_markup
-    )
-
-async def publish_media_group(query, context: ContextTypes.DEFAULT_TYPE, group_data: dict):
-    """Publica el grupo de archivos usando sendMediaGroup nativo de Telegram"""
-    files = group_data.get('files', [])
-    description = group_data['description']
-    price = group_data['price']
-    
-    if not files:
-        await query.answer("❌ No hay archivos para publicar", show_alert=True)
-        return
-    
-    try:
-        # Actualizar mensaje indicando que se está procesando
-        await query.edit_message_text(
-            f"⏳ **Procesando grupo de {len(files)} archivos...**\n\n"
-            f"📝 **Descripción:** {description}\n"
-            f"💰 **Precio:** {price} estrellas\n\n"
-            f"📡 **Preparando para envío...**",
-            parse_mode='Markdown'
-        )
-        
-        # Preparar media group para Telegram
-        media_items = []
-        
-        for i, file_data in enumerate(files):
-            if file_data['type'] == 'photo':
-                media_item = InputMediaPhoto(
-                    media=file_data['file_id'],
-                    caption=f"{description}" if i == 0 else None,  # Solo primer archivo lleva caption
-                    parse_mode='Markdown'
-                )
-            elif file_data['type'] == 'video':
-                media_item = InputMediaVideo(
-                    media=file_data['file_id'],
-                    caption=f"{description}" if i == 0 else None,
-                    parse_mode='Markdown'
-                )
-            elif file_data['type'] == 'document':
-                media_item = InputMediaDocument(
-                    media=file_data['file_id'],
-                    caption=f"{description}" if i == 0 else None,
-                    parse_mode='Markdown'
-                )
-            else:
-                continue  # Saltar tipos no soportados
-            
-            media_items.append(media_item)
-        
-        if not media_items:
-            await query.answer("❌ No se encontraron archivos válidos", show_alert=True)
-            return
-        
-        # Guardar en base de datos como contenido de grupo
-        content_id = content_bot.add_media_group_content(description, description, files, price)  # título ahora es descripción
-        
-        if content_id:
-            # Actualizar mensaje de confirmación
-            await query.edit_message_text(
-                f"✅ **¡Grupo publicado!**\n\n"
-                f"📝 **Descripción:** {description}\n"
-                f"💰 **Precio:** {price} estrellas\n"
-                f"📊 **Archivos:** {len(files)}\n\n"
-                f"📡 **Enviando a todos los usuarios...**",
-                parse_mode='Markdown'
-            )
-            
-            # Enviar a todos los usuarios usando broadcast especial para grupos
-            await broadcast_media_group(context, content_id, media_items, description, description, price)
-            
-            # Actualizar mensaje final
-            await query.edit_message_text(
-                f"✅ **¡Grupo publicado y enviado!**\n\n"
-                f"📝 **Descripción:** {description}\n"
-                f"💰 **Precio:** {price} estrellas\n"
-                f"📊 **Archivos:** {len(files)}\n\n"
-                f"✉️ **Enviado a todos los usuarios como álbum**",
-                parse_mode='Markdown'
-            )
-            
-            # Limpiar datos
-            if 'media_group' in context.user_data:
-                del context.user_data['media_group']
-            if 'waiting_for' in context.user_data:
-                del context.user_data['waiting_for']
-        else:
-            await query.answer("❌ Error al guardar el grupo", show_alert=True)
-            
-    except Exception as e:
-        logger.error(f"Error al publicar grupo: {e}")
-        await query.answer("❌ Error al publicar el grupo", show_alert=True)
 
 async def handle_text_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Maneja entrada de texto para configuración de contenido"""
@@ -1879,11 +1099,10 @@ async def handle_text_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     waiting_for = context.user_data.get('waiting_for')
     
-    
-    if waiting_for == 'description':
-        context.user_data['pending_media']['description'] = update.message.text
+    if waiting_for == 'title':
+        context.user_data['pending_media']['title'] = update.message.text
         await update.message.reply_text(
-            f"✅ **Descripción establecida:** {update.message.text}\n\n"
+            f"✅ **Título establecido:** {update.message.text}\n\n"
             f"Ahora puedes continuar configurando tu publicación:",
             parse_mode='Markdown'
         )
@@ -1891,7 +1110,8 @@ async def handle_text_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         # Mostrar preview actualizado
         keyboard = [
-            [InlineKeyboardButton("📝 Cambiar Descripción", callback_data="setup_description")],
+            [InlineKeyboardButton("✏️ Cambiar Título", callback_data="setup_title")],
+            [InlineKeyboardButton("📝 Establecer Descripción", callback_data="setup_description")],
             [InlineKeyboardButton("💰 Establecer Precio", callback_data="setup_price")],
             [InlineKeyboardButton("✅ Publicar Contenido", callback_data="publish_content")],
             [InlineKeyboardButton("❌ Cancelar", callback_data="cancel_upload")]
@@ -1902,122 +1122,28 @@ async def handle_text_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
             reply_markup=reply_markup
         )
     
-    # === NUEVOS HANDLERS PARA CONFIGURACIÓN MASIVA ===
-    elif waiting_for == 'batch_title':
-        media_queue = context.user_data.get('media_queue', [])
-        base_title = update.message.text
-        
-        for i, item in enumerate(media_queue, 1):
-            if len(media_queue) > 1:
-                item['title'] = f"{base_title} #{i}"
-            else:
-                item['title'] = base_title
-        
+    elif waiting_for == 'description':
+        context.user_data['pending_media']['description'] = update.message.text
         await update.message.reply_text(
-            f"✅ **Títulos establecidos para {len(media_queue)} archivos**\n\n"
-            f"📝 **Título base:** {base_title}\n"
-            f"💡 **Se agregó numeración automática**\n\n"
-            f"Puedes continuar configurando otros aspectos.",
-            parse_mode='Markdown'
-        )
-        del context.user_data['waiting_for']
-    
-    elif waiting_for == 'batch_description':
-        media_queue = context.user_data.get('media_queue', [])
-        description = update.message.text
-        
-        for item in media_queue:
-            item['description'] = description
-        
-        await update.message.reply_text(
-            f"✅ **Descripción aplicada a {len(media_queue)} archivos**\n\n"
-            f"📝 **Descripción:** {description[:100]}{'...' if len(description) > 100 else ''}\n\n"
-            f"Puedes continuar configurando otros aspectos.",
-            parse_mode='Markdown'
-        )
-        del context.user_data['waiting_for']
-    
-    elif waiting_for == 'batch_custom_price':
-        try:
-            price = int(update.message.text)
-            media_queue = context.user_data.get('media_queue', [])
-            
-            for item in media_queue:
-                item['price'] = price
-            
-            await update.message.reply_text(
-                f"✅ **Precio personalizado aplicado**\n\n"
-                f"💰 **Precio:** {price} {'estrellas ⭐' if price > 0 else '(GRATIS)'}\n"
-                f"📊 **Archivos afectados:** {len(media_queue)}\n\n"
-                f"Puedes continuar configurando otros aspectos o publicar todo.",
-                parse_mode='Markdown'
-            )
-            del context.user_data['waiting_for']
-        except ValueError:
-            await update.message.reply_text(
-                "❌ **Precio inválido**\n\n"
-                "Por favor, envía un número entero (0 para gratis).",
-                parse_mode='Markdown'
-            )
-    
-    # === NUEVOS HANDLERS PARA GRUPOS ===
-    
-    elif waiting_for == 'group_description':
-        context.user_data['media_group']['description'] = update.message.text
-        await update.message.reply_text(
-            f"✅ **Descripción del grupo establecida:** {update.message.text}\n\n"
-            f"Ahora puedes continuar configurando tu grupo:",
+            f"✅ **Descripción establecida:** {update.message.text}\n\n"
+            f"Ahora puedes continuar configurando tu publicación:",
             parse_mode='Markdown'
         )
         del context.user_data['waiting_for']
         
-        # Mostrar preview del grupo actualizado
+        # Mostrar preview actualizado
         keyboard = [
-            [InlineKeyboardButton("📝 Cambiar Descripción", callback_data="setup_group_description")],
-            [InlineKeyboardButton("💰 Establecer Precio", callback_data="setup_group_price")],
-            [InlineKeyboardButton("✅ Publicar Grupo", callback_data="publish_group")],
+            [InlineKeyboardButton("✏️ Establecer Título", callback_data="setup_title")],
+            [InlineKeyboardButton("📝 Cambiar Descripción", callback_data="setup_description")],
+            [InlineKeyboardButton("💰 Establecer Precio", callback_data="setup_price")],
+            [InlineKeyboardButton("✅ Publicar Contenido", callback_data="publish_content")],
             [InlineKeyboardButton("❌ Cancelar", callback_data="cancel_upload")]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
         await update.message.reply_text(
-            "Continuar configuración del grupo:",
+            "Continuar configuración:",
             reply_markup=reply_markup
         )
-    
-    elif waiting_for == 'group_custom_price':
-        try:
-            price = int(update.message.text)
-            if price < 0:
-                await update.message.reply_text("❌ El precio no puede ser negativo. Inténtalo de nuevo:")
-                return
-            
-            context.user_data['media_group']['price'] = price
-            await update.message.reply_text(
-                f"✅ **Precio del grupo establecido:** {price} estrellas\n\n"
-                f"Ahora puedes continuar configurando tu grupo:",
-                parse_mode='Markdown'
-            )
-            del context.user_data['waiting_for']
-            
-            # Mostrar preview del grupo actualizado
-            keyboard = [
-    
-                [InlineKeyboardButton("📝 Establecer Descripción", callback_data="setup_group_description")],
-                [InlineKeyboardButton("💰 Cambiar Precio", callback_data="setup_group_price")],
-                [InlineKeyboardButton("✅ Publicar Grupo", callback_data="publish_group")],
-                [InlineKeyboardButton("❌ Cancelar", callback_data="cancel_upload")]
-            ]
-            reply_markup = InlineKeyboardMarkup(keyboard)
-            await update.message.reply_text(
-                "Continuar configuración del grupo:",
-                reply_markup=reply_markup
-            )
-        except ValueError:
-            await update.message.reply_text(
-                "❌ **Precio inválido**\n\n"
-                "Por favor, envía un número entero (0 para gratis).",
-                parse_mode='Markdown'
-            )
     
     elif waiting_for == 'custom_price':
         try:
@@ -2049,28 +1175,6 @@ async def handle_text_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
         except ValueError:
             await update.message.reply_text("❌ Debes enviar un número válido. Inténtalo de nuevo:")
-    
-    elif waiting_for == 'help_message':
-        # Guardar el nuevo mensaje de ayuda
-        new_message = update.message.text
-        
-        if content_bot.set_setting('help_message', new_message):
-            await update.message.reply_text(
-                f"✅ **Mensaje de Ayuda Actualizado**\n\n"
-                f"El nuevo mensaje ha sido guardado exitosamente.\n"
-                f"Los usuarios ahora verán este mensaje cuando usen /ayuda\n\n"
-                f"💡 **Preview del mensaje:**\n"
-                f"{new_message[:150]}{'...' if len(new_message) > 150 else ''}",
-                parse_mode='Markdown'
-            )
-        else:
-            await update.message.reply_text(
-                "❌ **Error**\n\n"
-                "No se pudo guardar el mensaje. Inténtalo de nuevo.",
-                parse_mode='Markdown'
-            )
-        
-        del context.user_data['waiting_for']
 
 async def pre_checkout_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Maneja la verificación previa al pago"""
@@ -2164,7 +1268,7 @@ async def add_content_command(update: Update, context: ContextTypes.DEFAULT_TYPE
         await update.message.reply_text(f"❌ Error: {str(e)}")
 
 async def handle_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Maneja archivos de media con detección automática (como canales de Telegram)"""
+    """Maneja archivos de media enviados"""
     if not update.effective_user or not update.message:
         return
         
@@ -2174,144 +1278,47 @@ async def handle_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("❌ Solo el administrador puede subir contenido.")
         return
     
-    message = update.message
-    media_group_id = message.media_group_id
-    
     # Determinar tipo de media y file_id
-    if message.photo:
+    if update.message.photo:
         media_type = "photo"
-        file_id = message.photo[-1].file_id
-        filename = "Foto"
-    elif message.video:
+        file_id = update.message.photo[-1].file_id
+    elif update.message.video:
         media_type = "video"
-        file_id = message.video.file_id
-        filename = message.video.file_name or "Video"
-    elif message.document:
+        file_id = update.message.video.file_id
+    elif update.message.document:
         media_type = "document"
-        file_id = message.document.file_id
-        filename = message.document.file_name or "Documento"
+        file_id = update.message.document.file_id
     else:
         await update.message.reply_text("❌ Tipo de archivo no soportado.")
         return
     
-    media_item = {
+    # Guardar en contexto del usuario y mostrar botones de configuración
+    context.user_data['pending_media'] = {
         'type': media_type,
         'file_id': file_id,
-        'filename': filename,
-        'file_size': getattr(getattr(message, media_type, None), 'file_size', 0) if hasattr(message, media_type) else 0
-    }
-    
-    if not media_group_id:
-        # ARCHIVO INDIVIDUAL - Configurar directamente
-        await handle_single_file(update, context, media_item)
-    else:
-        # MÚLTIPLES ARCHIVOS - Agrupar automáticamente
-        await handle_media_group(update, context, media_item, media_group_id)
-
-async def handle_single_file(update: Update, context: ContextTypes.DEFAULT_TYPE, media_item: dict):
-    """Maneja un archivo individual con configuración simple"""
-    # Limpiar datos previos
-    if 'pending_media' in context.user_data:
-        del context.user_data['pending_media']
-    if 'media_queue' in context.user_data:
-        del context.user_data['media_queue']
-    
-    # Configurar archivo individual
-    context.user_data['pending_media'] = {
-        'type': media_item['type'],
-        'file_id': media_item['file_id'],
-        'filename': media_item['filename'],
+        'title': '',
         'description': '',
-        'price': 0,
-        'is_single': True
+        'price': 0
     }
     
+    # Mostrar botones para configurar el contenido
     keyboard = [
+        [InlineKeyboardButton("✏️ Establecer Título", callback_data="setup_title")],
         [InlineKeyboardButton("📝 Establecer Descripción", callback_data="setup_description")],
         [InlineKeyboardButton("💰 Establecer Precio", callback_data="setup_price")],
-        [InlineKeyboardButton("✅ Publicar Archivo", callback_data="publish_content")],
+        [InlineKeyboardButton("✅ Publicar Contenido", callback_data="publish_content")],
         [InlineKeyboardButton("❌ Cancelar", callback_data="cancel_upload")]
     ]
+    
     reply_markup = InlineKeyboardMarkup(keyboard)
     
     await update.message.reply_text(
-        f"📁 **Archivo individual detectado**\n\n"
-        f"📂 **Tipo:** {media_item['type']}\n"
-        f"📝 **Nombre:** {media_item['filename']}\n\n"
-        f"⚙️ **Configura tu archivo:**",
-        parse_mode='Markdown',
-        reply_markup=reply_markup
-    )
-
-async def handle_media_group(update: Update, context: ContextTypes.DEFAULT_TYPE, media_item: dict, media_group_id: str):
-    """Maneja múltiples archivos usando detección automática"""
-    global media_groups, pending_groups
-    
-    # Agregar a la colección de grupos
-    media_groups[media_group_id].append(media_item)
-    
-    # Cancelar timer previo si existe
-    if media_group_id in pending_groups:
-        pending_groups[media_group_id].cancel()
-    
-    # Crear nuevo timer para procesar el grupo
-    pending_groups[media_group_id] = asyncio.create_task(
-        process_media_group_delayed(update, context, media_group_id)
-    )
-
-async def process_media_group_delayed(update: Update, context: ContextTypes.DEFAULT_TYPE, media_group_id: str):
-    """Procesa el grupo de archivos después de un delay"""
-    await asyncio.sleep(0.5)  # Esperar 500ms por más archivos
-    
-    global media_groups, pending_groups
-    
-    if media_group_id in media_groups:
-        files = media_groups.pop(media_group_id)
-        pending_groups.pop(media_group_id, None)
-        
-        await process_media_group_final(update, context, files)
-
-async def process_media_group_final(update: Update, context: ContextTypes.DEFAULT_TYPE, files: list):
-    """Procesa el grupo final de archivos"""
-    if not files:
-        return
-    
-    # Limpiar datos previos
-    if 'pending_media' in context.user_data:
-        del context.user_data['pending_media']
-    if 'media_queue' in context.user_data:
-        del context.user_data['media_queue']
-    
-    # Los archivos ya están en formato serializable (dict)
-    # Configurar grupo de archivos
-    context.user_data['media_group'] = {
-        'files': files,
-        'title': '',
-        'description': '',
-        'price': 0,
-        'is_group': True
-    }
-    
-    file_count = len(files)
-    photo_count = sum(1 for f in files if f['type'] == 'photo')
-    video_count = sum(1 for f in files if f['type'] == 'video')
-    doc_count = sum(1 for f in files if f['type'] == 'document')
-    
-    keyboard = [
-        [InlineKeyboardButton("📝 Descripción del Grupo", callback_data="setup_group_description")],
-        [InlineKeyboardButton("💰 Precio del Grupo", callback_data="setup_group_price")],
-        [InlineKeyboardButton("✅ Publicar Grupo", callback_data="publish_group")],
-        [InlineKeyboardButton("❌ Cancelar", callback_data="cancel_upload")]
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    
-    await update.effective_chat.send_message(
-        f"📦 **Grupo de archivos detectado automáticamente**\n\n"
-        f"📊 **Total:** {file_count} archivo(s)\n"
-        f"🎥 **Fotos:** {photo_count}\n"
-        f"🎬 **Videos:** {video_count}\n"
-        f"📄 **Documentos:** {doc_count}\n\n"
-        f"💡 **Se publicarán juntos como un álbum con precio y descripción únicos:**",
+        f"📁 **Archivo recibido** ({media_type})\n\n"
+        f"🔧 **Configurar publicación:**\n"
+        f"✏️ Título: _No establecido_\n"
+        f"📝 Descripción: _No establecida_\n"
+        f"💰 Precio: **0 estrellas** (gratuito)\n\n"
+        f"Usa los botones para configurar tu publicación:",
         parse_mode='Markdown',
         reply_markup=reply_markup
     )
@@ -2400,39 +1407,8 @@ def main():
     # Crear aplicación
     application = Application.builder().token(BOT_TOKEN).build()
     
-    # Configurar menú de comandos desplegable
-    async def setup_commands():
-        """Configura el menú desplegable de comandos"""
-        from telegram import BotCommandScopeChat, BotCommandScopeDefault
-        
-        # Comandos para usuarios normales (menú básico)
-        user_commands = [
-            BotCommand("start", "🏠 Ver contenido del canal"),
-            BotCommand("ayuda", "❓ Obtener ayuda")
-        ]
-        
-        # Comandos para administrador (menú simplificado)
-        admin_commands = [
-            BotCommand("start", "🏠 Ver contenido del canal"),
-            BotCommand("menu", "📱 Menú de comandos completo")
-        ]
-        
-        # Configurar comandos por defecto para usuarios normales
-        await application.bot.set_my_commands(user_commands, scope=BotCommandScopeDefault())
-        
-        # Configurar comandos específicos para el administrador
-        if ADMIN_USER_ID != 0:
-            await application.bot.set_my_commands(
-                admin_commands, 
-                scope=BotCommandScopeChat(chat_id=ADMIN_USER_ID)
-            )
-        
-        logger.info("Menú de comandos configurado: usuarios normales y administrador")
-    
     # Añadir manejadores principales (experiencia de canal)
     application.add_handler(CommandHandler("start", start))
-    application.add_handler(CommandHandler("catalogo", catalog_command))
-    application.add_handler(CommandHandler("ayuda", help_command))
     
     # Comandos de administración (ocultos para usuarios normales)
     application.add_handler(CommandHandler("admin", admin_command))
@@ -2484,40 +1460,19 @@ def main():
             logger.info(f"Servidor web iniciado en puerto {port}")
             server.serve_forever()
         
-        async def run_bot():
+        def run_bot():
             logger.info("Iniciando bot...")
-            # Configurar comandos al iniciar
-            await setup_commands()
-            await application.initialize()
-            await application.start()
-            await application.updater.start_polling(allowed_updates=Update.ALL_TYPES)
-            
-            # Mantener el bot funcionando
-            try:
-                await application.updater.idle()
-            finally:
-                await application.stop()
-                await application.shutdown()
-        
-        def run_bot_sync():
-            import asyncio
-            asyncio.run(run_bot())
+            application.run_polling(allowed_updates=Update.ALL_TYPES)
         
         # Iniciar servidor web en hilo separado
         web_thread = threading.Thread(target=run_web_server, daemon=True)
         web_thread.start()
         
         # Ejecutar bot en hilo principal
-        run_bot_sync()
+        run_bot()
     else:
         # Localmente: Solo bot
         logger.info("Iniciando bot...")
-        
-        # Configurar comandos usando un handler especial
-        async def post_init(application):
-            await setup_commands()
-            
-        application.post_init = post_init
         application.run_polling(allowed_updates=Update.ALL_TYPES)
 
 if __name__ == '__main__':
