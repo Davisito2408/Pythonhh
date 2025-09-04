@@ -2,9 +2,5 @@ aiofiles>=24.1.0
 aiosqlite>=0.21.0
 python-telegram-bot>=22.3
 python-dotenv>=1.0.0
-python-dotenv
+python-telegram-bot==22.3
 telegram
-aiofiles
-aiosqlite
-python-dotenv
-python-telegram-bot
