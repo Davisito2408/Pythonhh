@@ -922,8 +922,6 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         elif data == "admin_settings":
             keyboard = [
                 [InlineKeyboardButton("🗑️ Limpiar chats de usuarios", callback_data="clean_user_chats")],
-                [InlineKeyboardButton("🧹 Limpiar chat de administración", callback_data="clean_admin_chat")],
-                [InlineKeyboardButton("📊 Exportar estadísticas", callback_data="export_stats")],
                 [InlineKeyboardButton("⬅️ Volver", callback_data="admin_back")]
             ]
             reply_markup = InlineKeyboardMarkup(keyboard)
