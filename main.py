@@ -597,12 +597,13 @@ async def send_channel_post(update: Update, context: ContextTypes.DEFAULT_TYPE, 
                 group_info = json.loads(content['description'])
                 files = group_info.get('files', [])
                 group_description = group_info.get('description', '')
-                group_caption = f"**{content['title']}**\n\n{group_description}"
+                # Caption solo en el primer elemento según las mejores prácticas de Telegram
+                clean_caption = f"**{content['title']}**\n\n{group_description}"
                 
                 # Convertir a InputMedia*
                 media_items = []
                 for i, file_data in enumerate(files):
-                    caption_text = group_caption if i == 0 else None  # Solo primer archivo lleva caption
+                    caption_text = clean_caption if i == 0 else None  # Solo primer archivo lleva caption
                     if file_data['type'] == 'photo':
                         media_items.append(InputMediaPhoto(
                             media=file_data['file_id'],
