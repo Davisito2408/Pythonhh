@@ -1062,8 +1062,16 @@ Si tienes problemas, contacta al administrador del canal.'''))
         cursor.execute('SELECT language FROM user_preferences WHERE user_id = ?', (user_id,))
         result = cursor.fetchone()
         
+        language = result[0] if result else 'es'  # Español por defecto
+        
+        # Log para diagnosticar
+        if not result:
+            logger.warning(f"Usuario {user_id} no tiene idioma configurado, usando español por defecto")
+        else:
+            logger.info(f"Usuario {user_id} idioma configurado: {language}")
+        
         conn.close()
-        return result[0] if result else 'es'  # Español por defecto
+        return language
     
     def set_user_language(self, user_id: int, language: str):
         """Establece el idioma preferido del usuario"""
@@ -1555,6 +1563,8 @@ async def broadcast_new_content(context: ContextTypes.DEFAULT_TYPE, content_id: 
     if not content:
         return
     
+    logger.info(f"📢 Enviando contenido ID {content_id} '{content.get('title', '')}' a {len(users)} usuarios")
+    
     for user_id in users:
         try:
             # Crear update falso para send_channel_post
@@ -1656,6 +1666,9 @@ async def send_channel_post(update: Update, context: ContextTypes.DEFAULT_TYPE, 
     # Obtener descripción en el idioma del usuario
     user_language = content_bot.get_user_language(user_id)
     caption = get_content_description(content, user_language)
+    
+    # Log para diagnosticar el idioma usado
+    logger.info(f"Enviando contenido ID {content['id']} a usuario {user_id} en idioma '{user_language}'")
     
     # Verificar si el usuario ya compró el contenido
     has_purchased = content_bot.has_purchased_content(user_id, content['id'])
