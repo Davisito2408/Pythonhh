@@ -560,16 +560,10 @@ async def send_channel_post(update: Update, context: ContextTypes.DEFAULT_TYPE, 
     """Envía una publicación individual como si fuera de un canal"""
     chat_id = update.effective_chat.id if update.effective_chat else user_id
     
-    # Formatear el caption como un canal premium
-    # Para media_group, extraer la descripción real del JSON
+    # Formatear el caption como un canal premium - SIMPLIFICADO según API de Telegram
+    # Para media_group: solo título (sin descripción para evitar duplicación)
     if content['media_type'] == 'media_group':
-        import json
-        try:
-            group_info = json.loads(content['description'])
-            real_description = group_info.get('description', '')
-            caption = f"**{content['title']}**\n\n{real_description}"
-        except:
-            caption = f"**{content['title']}**\n\nContenido multimedia"
+        caption = f"**{content['title']}**"
     else:
         caption = f"**{content['title']}**\n\n{content['description']}"
     
@@ -606,12 +600,11 @@ async def send_channel_post(update: Update, context: ContextTypes.DEFAULT_TYPE, 
                 # Deserializar los archivos del grupo
                 group_info = json.loads(content['description'])
                 files = group_info.get('files', [])
-                group_description = group_info.get('description', '')
                 
-                # Convertir a InputMedia*
+                # Convertir a InputMedia* - ESTÁNDAR TELEGRAM: caption solo en primer elemento
                 media_items = []
                 for i, file_data in enumerate(files):
-                    # Solo el primer archivo lleva caption (ya procesado arriba)
+                    # Según API oficial: caption SOLO en primer elemento
                     caption_text = caption if i == 0 else None
                     if file_data['type'] == 'photo':
                         media_items.append(InputMediaPhoto(
@@ -674,9 +667,8 @@ async def send_channel_post(update: Update, context: ContextTypes.DEFAULT_TYPE, 
                 # Deserializar los archivos del grupo
                 group_info = json.loads(content['description'])
                 files = group_info.get('files', [])
-                group_description = group_info.get('description', '')
-                # Usar caption existente con título + descripción del grupo
-                final_caption = f"**{content['title']}**\n\n{group_description}"
+                # SIMPLIFICADO: solo título para sendPaidMedia también
+                final_caption = f"**{content['title']}**"
                 
                 # Convertir a InputPaidMedia*
                 paid_media_items = []
